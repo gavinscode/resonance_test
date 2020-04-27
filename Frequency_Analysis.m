@@ -6,22 +6,22 @@ LIGHT_SPEED = 299792458;
 % NearIR wavelength windows
 window1Wavelength_m = [650 950]*10^-9;
 
-window2Wavelength_m = [1100 1350]*10^-9;
+window2Wavelength_m = [1259 1100 1350]*10^-9;
 
-window3Wavelength_m = [1600 1870]*10^-9;
+window3Wavelength_m = [1671 1600 1870]*10^-9;
 
-window4Wavelength_m = [2100 2300]*10^-9;
+window4Wavelength_m = [2208 2100 2300]*10^-9;
 
 %Target resonance
 %%% Pulsed is very sensitive to this, 
 %%% may be difference if this shifts between odd or even modes.
-targetFrequency_hz = 8.22*10^9*1.25;
+targetFrequency_hz = 8.22*10^9; %*1.25
 
 targetWavelength_m = LIGHT_SPEED/targetFrequency_hz;
 
 targetPeriod_s = 1/targetFrequency_hz;
 
-periodsToSimulate = 30;
+periodsToSimulate = 10;
 
 simulationDuration_s = periodsToSimulate*targetPeriod_s;
 
@@ -33,6 +33,9 @@ window2Frequency_hz = LIGHT_SPEED./window2Wavelength_m;
 window3Frequency_hz = LIGHT_SPEED./window3Wavelength_m;
 
 window4Frequency_hz = LIGHT_SPEED./window4Wavelength_m;
+
+%%% CHANGE FREQUNCY BAND HERE
+carrierFrequency_hz = window4Frequency_hz(1);
 
 % Sampling rate
 pointsPerCarrierWave = 10; %No qulatitative change 10 - 100
@@ -59,8 +62,6 @@ pulsedSignal(pulsedSignal < 0) = 0;
 pulsedSignal(pulsedSignal > 0) = 1;
 
 % Add lightwave to pulses
-carrierFrequency_hz = window4Frequency_hz(1);
-
 lightPulseSignal = sin(2*pi*carrierFrequency_hz*time_s).*pulsedSignal;
 
 % Create beating signal - subtract so longer wavelength
@@ -146,7 +147,7 @@ ligthFemtoPulsedPower(2:end-1) = 2*ligthFemtoPulsedPower(2:end-1);
 
 
 % Display results
-%close all
+close all
 
 figure; subplot(2,4,1); hold on
 
