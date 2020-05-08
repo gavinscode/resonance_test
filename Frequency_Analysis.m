@@ -15,7 +15,7 @@ window4Wavelength_m = [2208 2100 2300]*10^-9;
 %Target resonance
 %%% Pulsed is very sensitive to this, 
 %%% may be difference if this shifts between odd or even modes.
-targetFrequency_hz = 8.22*10^9; %*1.25
+targetFrequency_hz = 8.22*10^9; 1.6388*10^9;  %*1.25
 
 targetWavelength_m = LIGHT_SPEED/targetFrequency_hz;
 
@@ -35,7 +35,7 @@ window3Frequency_hz = LIGHT_SPEED./window3Wavelength_m;
 window4Frequency_hz = LIGHT_SPEED./window4Wavelength_m;
 
 %%% CHANGE FREQUNCY BAND HERE
-carrierFrequency_hz = window4Frequency_hz(1);
+carrierFrequency_hz = window3Frequency_hz(1);
 
 % Sampling rate
 pointsPerCarrierWave = 10; %No qulatitative change 10 - 100
@@ -67,7 +67,9 @@ lightPulseSignal = sin(2*pi*carrierFrequency_hz*time_s).*pulsedSignal;
 % Create beating signal - subtract so longer wavelength
 upperFrequncy_hz = carrierFrequency_hz - targetFrequency_hz;
 
-beatingSignal = sin(2*pi*carrierFrequency_hz*time_s) + sin(2*pi*upperFrequncy_hz*time_s);
+beatingSignal = sin(2*pi*carrierFrequency_hz*time_s) + sin(2*pi*upperFrequncy_hz*time_s); 
+%beatingSignal = sin(2*pi*carrierFrequency_hz*time_s) .* sin(2*pi*targetFrequency_hz*time_s); 
+
 
 wavelengthDifference_nm = (LIGHT_SPEED/upperFrequncy_hz - LIGHT_SPEED/carrierFrequency_hz)*10^9;
 

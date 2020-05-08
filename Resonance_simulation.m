@@ -1,11 +1,9 @@
-%%% Should confirm with more accurate ODE solver 
-
 % Influenza parameters from Yang 2016
 resonanceFrequency_hz = 8.22*10^9; 
 
 resonantFrequency_rad = resonanceFrequency_hz*2*pi;
 
-qualityFactor = 1.92;
+qualityFactor = 1.95;
 
 reducedMass_kg = 14.5*1.6605*10^-21; % Convert from MDa to kg
 
@@ -60,9 +58,9 @@ resonance_absorbtion = (5.5536 + 5.2881)/2;
 % Choose correct one for frequncy
 %carrier_absorbtion = 1.071; % For 1259 nm - gain here 30.9 - stress ratio  0.000483
 
-%carrier_absorbtion = 5.568; % For 1671 nm - gain here 61.1 - stress ratio 0.0017
+carrier_absorbtion = 5.568; % For 1671 nm - gain here 61.1 - stress ratio 0.0017
 
-carrier_absorbtion = 19.278; % For 2208 nm - gain here 98.9 - stress ratio 0.0027
+%carrier_absorbtion = 19.278; % For 2208 nm - gain here 98.9 - stress ratio 0.0027
 
 theta_abs_scaled = -1/(1.25/1000 * 7.5*10^14)*log((1-0.21)^ ...
     (carrier_absorbtion/resonance_absorbtion));
@@ -117,7 +115,7 @@ lightPulsedOutput = zeros(sampleLength,1);
 dY = 0;
 
 for i = 2:sampleLength
-    
+    %
     ddY = (chargeDistributionTemp*driveEnergy*lightPulseSignal(i-1)-systemSpring*lightPulsedOutput(i-1)-...
         systemDamp*dY)/reducedMass_kg;
     
@@ -157,7 +155,7 @@ dY = 0;
 
 for i = 2:sampleLength
     
-    ddY = (chargeDistributionTemp*driveEnergy*femtoPulsedSignal(i-1)-systemSpring*femtoPulsedOutput(i-1)-...
+    ddY = (chargeDistribution*driveEnergy*femtoPulsedSignal(i-1)-systemSpring*femtoPulsedOutput(i-1)-...
         systemDamp*dY)/reducedMass_kg;
     
     femtoPulsedOutput(i) = femtoPulsedOutput(i-1) + dY*samplingPeriod_s;
@@ -172,7 +170,7 @@ dY = 0;
 
 for i = 2:sampleLength
     
-    ddY = (chargeDistribution*driveEnergy*lightFemtoPulsedSignal(i-1)-systemSpring*lighFemtoPulsedOutput(i-1)-...
+    ddY = (chargeDistributionTemp*driveEnergy*lightFemtoPulsedSignal(i-1)-systemSpring*lighFemtoPulsedOutput(i-1)-...
         systemDamp*dY)/reducedMass_kg;
     
     lighFemtoPulsedOutput(i) = lighFemtoPulsedOutput(i-1) + dY*samplingPeriod_s;
@@ -185,7 +183,7 @@ end
 % Plotting
 figure; subplot(2,3,1); hold on 
 
-plot(time_s, sineOutput*10^12); title('Sine drive');
+plot(time_s, sineOutput*10^12,'b'); title('Sine drive');
 
 subplot(2,3,2); hold on 
 
@@ -197,7 +195,7 @@ plot(time_s, femtoPulsedOutput*10^12); title('Femto-pulse drive')
 
 subplot(2,3,4); hold on
 
-plot(time_s, lightPulsedOutput*10^12); title('Pulsed lightwave drive')
+plot(time_s, lightPulsedOutput*10^12,'b'); title('Pulsed lightwave drive')
 
 subplot(2,3,5); hold on
 
@@ -206,3 +204,34 @@ plot(time_s, beatingOutput*10^12); title('Beating drive')
 subplot(2,3,6); hold on
 
 plot(time_s, lighFemtoPulsedOutput*10^12); title('Femtopulsed lightwave drive')
+
+
+
+%% 
+figure;
+subplot(3,2,1); hold on
+
+plot(time_s, targetSignal); title('Microwave drive');
+xlabel('Time (s)'); ylabel('Amplitude (V/m)')
+
+subplot(3,2,3); hold on
+plot(frequencyReference, targetPower)
+xlim([0 20*10^9])
+xlabel('Frequncy (Hz)'); ylabel('Power')
+
+subplot(3,2,5); hold on
+plot(time_s, sineOutput*10^12); 
+xlabel('Time (s)'); ylabel('Vibration (pico m)')
+
+subplot(3,2,2); hold on
+plot(time_s, lightPulseSignal); title('Pulsed IR drive')
+xlabel('Time (s)'); ylabel('Amplitude (V/m)')
+
+subplot(3,2,4); hold on
+plot(frequencyReference, lightPulsedPower); 
+xlim([0 20*10^9])
+xlabel('Frequncy (Hz)'); ylabel('Power')
+
+subplot(3,2,6); hold on
+plot(time_s, lightPulsedOutput*10^12);
+xlabel('Time (s)'); ylabel('Vibration (pico m)')
