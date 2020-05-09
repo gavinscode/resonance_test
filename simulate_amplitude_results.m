@@ -3,6 +3,8 @@ close all;
 clear;
 clc
 
+%%% Note that results are ampltidue, but scaled to absorbtion
+
 % Set up signals and time series
 testFrequncies_hz = (5:0.1:15)*10^9;
 
@@ -26,28 +28,27 @@ sampleLength = round(simulationDuration_s/samplingPeriod_s);
 
 time_s = (0:sampleLength-1)*samplingPeriod_s; 
 
-% Model parameters
+% Measured paramteres - for reference if changed in model
 measuredResonance_hz = 8.22*10^9;
-
-resonanceFrequency_hz = 8.3*10^9; 
-
-resonantFrequency_rad = resonanceFrequency_hz*2*pi;
 
 measuredBandwidth = 4.22*10^9;
 
 measuredQualityFactor = 1.95;
 
-qualityFactor = 4.4;
-
-absorbtionMax = 0.21;
+measuredAbsorbtion = 0.21;
 
 reducedMass_kg = 14.5*1.6605*10^-21; % Convert from MDa to kg
+
+% Model parameters
+resonanceFrequency_hz = 8.3*10^9; 
+
+resonantFrequency_rad = resonanceFrequency_hz*2*pi;
+
+qualityFactor = 4.4;
 
 systemSpring = resonantFrequency_rad^2*reducedMass_kg;
 
 systemDamp = resonantFrequency_rad*reducedMass_kg/qualityFactor;
-
-chargeDistribution = 1.16*10^7*1.602176634*10^-19;
 
 parameters = [systemSpring systemDamp reducedMass_kg];
 
@@ -65,7 +66,6 @@ for iFreq = 1:length(testFrequncies_hz)
     testSignal = makesinewave(testFrequncies_hz(iFreq), time_s);
     
     % Simualte virion motion
-    % Leave out chargeDistribution for now, will rescale later
     outputMotion = rksolversecondorder(testSignal, parameters,...
         samplingPeriod_s);
     
@@ -79,20 +79,20 @@ for iFreq = 1:length(testFrequncies_hz)
     end
     
     % Record result
-    maxAmplitude(iFreq) = max(outputMotion) - min(outputMotion);
+    maxAmplitude(iFreq) = (max(outputMotion) - min(outputMotion))/2;
 end
 
 % Calculate analytical results
 analyticalAmplitude = zeros(length(testFrequncies_hz),1);
 
-% Does not match simulation perfectly - why not?
+%%% Amplitude does not match simulation perfectly - why not?
 
 for iFreq = 1:length(testFrequncies_hz)
-    % Solve Eqn 7 from paper
-    
+    % Eqn 7
     analyticalAmplitude(iFreq) = 1./(reducedMass_kg*...
         sqrt((resonantFrequency_rad^2 - testFrequncies_rad(iFreq).^2).^2 + ...
-        (resonantFrequency_rad*testFrequncies_rad(iFreq)/qualityFactor).^2))*2;
+        (resonantFrequency_rad*testFrequncies_rad(iFreq)/qualityFactor).^2));
+
 end
 
 % Get peak 
@@ -101,9 +101,9 @@ end
 simulatedPeakFrequency = testFrequncies_hz(peakInd)/10^9
 
 % Scale amplitude
-maxAmplitude = maxAmplitude/peakAmplitude*absorbtionMax;
+maxAmplitude = maxAmplitude/peakAmplitude*measuredAbsorbtion;
 
-analyticalAmplitude = analyticalAmplitude/peakAmplitude*absorbtionMax;
+analyticalAmplitude = analyticalAmplitude/peakAmplitude*measuredAbsorbtion;
 
 % Plot absorbtion spectrum
 figure; hold on; ylim([0 0.25])
@@ -119,11 +119,11 @@ plot(testFrequncies_hz(peakInd)/10^9, maxAmplitude(peakInd), 'o')
 plot(testFrequncies_hz(resonanceInd)/10^9, maxAmplitude(resonanceInd), 'x');
 
 % Indicate bandwidth
-upperBandInd = find(maxAmplitude(peakInd:end) < absorbtionMax/2);
+upperBandInd = find(maxAmplitude(peakInd:end) < measuredAbsorbtion/2);
 
 upperBandInd = upperBandInd(1) + peakInd - 1;
 
-lowerBandInd = find(maxAmplitude(1:peakInd) < absorbtionMax/2);
+lowerBandInd = find(maxAmplitude(1:peakInd) < measuredAbsorbtion/2);
 
 if ~isempty(lowerBandInd)
    lowerBandInd = lowerBandInd(end);
@@ -143,4 +143,7 @@ else
    
     simulatedQualityFactor = simulatedPeakFrequency*10^9/simulatedBandwidth
 end
+
+ylabel('Amplitdue - scaled to absorbtion peak')
+xlabel('Frequcny (GHz)')
 

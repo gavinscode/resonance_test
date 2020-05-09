@@ -67,9 +67,12 @@ theta_abs_scaled = -1/(1.25/1000 * 7.5*10^14)*log((1-0.21)^ ...
 
 carrierFrequency_rad = carrierFrequency_hz*2*pi;
 
+%%% This is really wrong
 % 1.77 is relative permittivity of light in water
 chargeDistributionTemp = sqrt(theta_abs_scaled*carrierFrequency_rad*reducedMass_kg*LIGHT_SPEED*...
     sqrt(1.77)*vaccumPermitivity/qualityFactor);
+
+%%% Note done incorrectly, assumes resonance
 
 chargeDistributionTemp/chargeDistribution
 
