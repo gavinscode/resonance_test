@@ -8,7 +8,7 @@ set_parameters
 set_charge_distribution
 
 % Clear ones that are being set/tested
-clear radius_m
+clear diameter_m
 
 clear reducedMass_kg
 
@@ -151,7 +151,7 @@ for iQVal = 1:length(QValuesToTest)
 
             % Eqn 13 - solution for absorbtion
             analyticalAbsorbtion(iQVal, jDiam, kFreq) = (1-exp(-theta_absorbtion*...
-                virionDensity*channelLength_m)).*sizeFrequncy(jDiam);
+                virionDensity.*sizeFrequncy(jDiam)*channelLength_m));
 
             % Eqn 11
             analyticalStress(iQVal, jDiam, kFreq) = 2*systemSpring*analyticalAmplitude(iQVal, jDiam, kFreq)/...

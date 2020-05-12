@@ -22,11 +22,13 @@ measuredAbsorbtion = 0.21; % Max
 % Correct reduced mass for 100 nm: 8.77*10^-21;
 reducedMass_kg = 14.5*1.6605*10^-21; % Convert from MDa
 
+% Note this is density of virions in solution, not mass/density of particles
 virionDensity = 7.5*10^14; % 1/m^3
 
 channelLength_m = 1.25/1000;
 
-radius_m = 50*10^-9;
+% Correct radius for 161 MDa weight: 140 nm
+diameter_m = 100*10^-9;
 
 stressThreshold_pa = 0.141*10^6;
 

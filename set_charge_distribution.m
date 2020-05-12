@@ -54,24 +54,25 @@ qInterpolated = interp1(calcFrequencies_hz, calcQ, testFrequncies_hz, ...
 qLimit = sqrt(0.15*calcFrequencies_rad(2)*calcThetaAbs2(2)*sqrt(calcRelativePermitivity(2))*...
     VACCUM_PERMITIVITY*LIGHT_SPEED*reducedMass_kg);
 
-%qLimit/(1.602176634*10^-19)
+centreQinCharge = calcQ(2)/(1.602176634*10^-19)
+
+limitInCharge = qLimit/(1.602176634*10^-19)
 
 % Quick plot to test results
-% figure; hold on; 
-% 
-% plot(testFrequncies_hz/10^9, qInterpolated/providedChargeDistribution)
-% 
-% plot(calcFrequencies_hz/10^9, calcQ/providedChargeDistribution, 'ro')
-% 
-% plot(calcFrequencies_hz([1 end])/10^9, [1 1]*qLimit/providedChargeDistribution)
+figure; hold on; 
+
+plot(testFrequncies_hz/10^9, qInterpolated/providedChargeDistribution)
+
+plot(calcFrequencies_hz/10^9, calcQ/providedChargeDistribution, 'ro')
+
+plot(calcFrequencies_hz([1 end])/10^9, [1 1]*qLimit/providedChargeDistribution)
 
 % Interpolate permitivity
 relativePermitivtyInterpolated = interp1(calcFrequencies_hz, calcRelativePermitivity, ...
     testFrequncies_hz, 'linear','extrap');
 
 %% Messy test for IR - but x17,000 gain!!! - probably not realistic
-%%% May need to use resonance frequncy corresponding to higher mode, then 
-% other amplitudes will be larger.
+%%% Note, this does not really need to be done, will be single q value for particle
 
 IR_WL = 1671*10^-9; % Middle 3rd water window
 IR_freq_Rad = LIGHT_SPEED/IR_WL*2*pi;

@@ -35,7 +35,7 @@ for iFreq = 1:length(testFrequncies_hz)
 end
 
 % Eqn 11
-analyticalStress = 2*systemSpring*analyticalAmplitude/(0.58*pi*radius_m^2);
+analyticalStress = 2*systemSpring*analyticalAmplitude/(0.58*pi*(diameter_m/2)^2);
 
 %% Plot results
 
