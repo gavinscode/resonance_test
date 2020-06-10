@@ -1,12 +1,20 @@
 %% To determine q (charge distribution) values
 
-% From Fig. 3B of Yang 2016 - measured in imageJ
-% Peak is actually at 8.3
-calcFrequencies_hz = [6 8.22 10.5 11.5 13.25]*10^9;
+% From Fig. 3B of Yang 2016 
+    % (y) absorbtion measured in imageJ for each Ghz
+    % (x) frequncy measured for peak and zero
+    % Peak is actually at 8.3??? Changed from 8.22
+calcFrequencies_hz = [6 7 8 8.3 9 10 11 12 13.25 14]*10^9;
 
 calcFrequencies_rad = calcFrequencies_hz*2*pi;
 
-calcAbsorbtions = [9.75 21.6 9.94 3.56 0.001]/100;
+calcAbsorbtions = [9.7 16.4 21.1 21.5 20.1 13.8 6.4 1.7 0.1 0.5]/100;
+
+if length(calcFrequencies_hz) ~= length(calcAbsorbtions)
+   error('Incorectly copied values') 
+end
+
+peakInd = 4;
 
 % from Ellison et al. 1996 pg 240 Pottel 1980, 25oC
 permitivityValues = [73.11, 73.19, 73.13, 72.71, 72.63, 72.25, 71.92, 71.50, ... 
@@ -23,8 +31,8 @@ if length(permitivityValues) ~= length(permitivityFrequenceis)
    error('Incorectly copied values') 
 end
 
-calcRelativePermitivity = interp1(permitivityFrequenceis, permitivityValues, ...
-    calcFrequencies_hz/10^9, 'linear','extrap');
+calcRelativePermitivity = interp1(permitivityFrequenceis*10^9, permitivityValues, ...
+    calcFrequencies_hz, 'linear','extrap');
 
 % Calcualte values for q
 % Eqn 7: q omitted as it is solved for and E is ommited as it will cancel later
@@ -52,8 +60,8 @@ calcQ = sqrt(calcThetaAbs2./calcThetaAbs1);
 calcQ/providedChargeDistribution;
 
 % Compare to eqn 14 - simplified by assuming freq at resonance
-sqrt(calcThetaAbs2(2)*measuredResonance_rad*reducedMass_kg*...
-    sqrt(calcRelativePermitivity(2))*VACCUM_PERMITIVITY*LIGHT_SPEED...
+sqrt(calcThetaAbs2(peakInd)*measuredResonance_rad*reducedMass_kg*...
+    sqrt(calcRelativePermitivity(peakInd))*VACCUM_PERMITIVITY*LIGHT_SPEED...
     /measuredQualityFactor)/providedChargeDistribution;
 
 % Just using q from peak reduces quality and increases bandwidth a bit...
@@ -64,10 +72,12 @@ qInterpolated = interp1(calcFrequencies_hz, calcQ, testFrequncies_hz, ...
     'linear','extrap');
 
 % From Murrey et al 2006 Eqn 23, sets practical limit for Q 
-qLimit = sqrt(0.15*calcFrequencies_rad(2)*calcThetaAbs2(2)*sqrt(calcRelativePermitivity(2))*...
+qLimit = sqrt(0.15*calcFrequencies_rad(peakInd)*calcThetaAbs2(peakInd)*sqrt(calcRelativePermitivity(peakInd))*...
     VACCUM_PERMITIVITY*LIGHT_SPEED*reducedMass_kg);
 
-centreQinCharge = calcQ(2)/(1.602176634*10^-19)
+centreQinCharge = calcQ(peakInd)/(1.602176634*10^-19)
+
+providedChargeDistribution = calcQ(peakInd);
 
 limitInCharge = qLimit/(1.602176634*10^-19)
 
@@ -81,37 +91,5 @@ plot(calcFrequencies_hz/10^9, calcQ/providedChargeDistribution, 'ro')
 plot(calcFrequencies_hz([1 end])/10^9, [1 1]*qLimit/providedChargeDistribution)
 
 % Interpolate permitivity
-relativePermitivtyInterpolated = interp1(calcFrequencies_hz, calcRelativePermitivity, ...
+relativePermitivtyInterpolated = interp1(permitivityFrequenceis*10^9, permitivityValues, ...
     testFrequncies_hz, 'linear','extrap');
-
-%% Messy test for IR - but x17,000 gain!!! - probably not realistic
-%%% Note, this does not really need to be done, will be single q value for particle
-
-IR_WL = 1671*10^-9; % Middle 3rd water window
-IR_freq_Rad = LIGHT_SPEED/IR_WL*2*pi;
-% Assume absorbtion is simliar, so ThetaAbs2 will match as well
-IR_permit = 1.77;
-
-% This ends up super small - seems fair
-IR_Amp = 1./(reducedMass_kg*...
-        sqrt((measuredResonance_rad^2 - IR_freq_Rad.^2).^2 + ...
-        (measuredResonance_rad*IR_freq_Rad/measuredQualityFactor).^2));
-
-% This ends up relatively small - seems fair
-IR_AvgAbs = measuredResonance_rad.*IR_freq_Rad.^2*...
-    reducedMass_kg.*IR_Amp.^2/(2*measuredQualityFactor);
-
-% This ends up a bit smaller - expected due to permitivity
-IR_Flux = 0.5*sqrt(IR_permit)*VACCUM_PERMITIVITY*LIGHT_SPEED;
-
-% This ends up relatively small - seems fair
-IR_ThetaAbs1 = IR_AvgAbs/IR_Flux;
-
-% Segelstein gives similar absorbtion coefficient for water between third water window and 8 Ghz, 
-% Does this mean absorbtion ratio is similiar? If so, is cross-section equal?
-IR_ThetaAbs2 = 2.5*10^-13;
-
-% Because thetaAbs1 decrease but thetaAbs2 stays constant, q increases a lot...
-IR_calcQ = sqrt(IR_ThetaAbs2./IR_ThetaAbs1);
-    
-IR_calcQ/providedChargeDistribution;

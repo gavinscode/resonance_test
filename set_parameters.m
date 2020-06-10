@@ -3,7 +3,7 @@ LIGHT_SPEED = 299792458; % m/s
 VACCUM_PERMITIVITY = 8.854187817*10^-12; %C^2/(N.M^2)
 
 % Freqs to cover - set to match range of q interpolation
-testFrequncies_hz = (6:0.05:13)*10^9;
+testFrequncies_hz = (6:0.05:14)*10^9;
 
 testFrequncies_rad = testFrequncies_hz*2*pi;
 
@@ -32,7 +32,8 @@ diameter_m = 100*10^-9;
 
 stressThreshold_pa = 0.141*10^6;
 
-providedChargeDistribution = 1.16*10^7*1.602176634*10^-19; % At 8.2 Ghz, 
+% Note replaced in charge distrubtion script
+providedChargeDistribution = 1.16*10^7*1.602176634*10^-19;
 
 fieldIntensity = [68 87 171 274]; %v/m
 

@@ -1,11 +1,4 @@
-%close all;
-clear;
-clc
-
-% Load and/or calculate values
-set_parameters
-
-set_charge_distribution
+calculate_absorbtion_results
 
 % Clear ones that are being set/tested
 clear diameter_m
@@ -81,11 +74,11 @@ sizeFrequncy = sizeFrequncy/sum(sizeFrequncy);
 warning('mass scaled back to that of paper')
 massScaleUp = averageMass_X49_kg/(4/3*pi*(averageDiameter_virus_m/2)^3*virusDensity);
 
-reducedMassScale = 0.09; %Unclear why reduced, core is taken to be 10% volume
+coreFraction = 0.1; 
 
 valuesMass_virus_kg = 4/3*pi*(valuesDiameter_virus_m/2).^3*virusDensity*massScaleUp;
 
-valuesReducedMass_virus_kg = valuesMass_virus_kg*reducedMassScale;
+valuesReducedMass_virus_kg = valuesMass_virus_kg*(coreFraction*(1-coreFraction));
 
 %%% May wish to try with orignal reduced mass for comparison
 
@@ -104,7 +97,7 @@ end
 
 %[valuesDiameter_virus_m, valuesFrequncy_virus_hz]
 
-QValuesToTest = (1:5)*2;
+QValuesToTest = (1:5)*2; %6;
 %% Simulate results at each q value
 
 %%% Currently just using charge distribution (q) from original
@@ -121,7 +114,16 @@ analyticalStress = zeros(length(QValuesToTest), length(valuesDiameter_virus_m), 
 %qToUse = providedChargeDistribution*ones(length(testFrequncies_hz),1);
 qToUse = qInterpolated;
 
+%warning('Fixed charge used')
+%qToUse(:) = providedChargeDistribution/2;
+
 figure;
+
+cols = flipud(copper(length(valuesDiameter_virus_m)));
+
+fig1 = figure; hold on
+
+fig2 = figure; hold on
 
 for iQVal = 1:length(QValuesToTest)
     
@@ -158,19 +160,62 @@ for iQVal = 1:length(QValuesToTest)
                 (0.58*pi*(valuesDiameter_virus_m(jDiam)/2)^2);
            
        end
-       % Plot results for each diameter
+%        % Plot results for each diameter
        subplot(5,3,(iQVal-1)*3+1); hold on
-       plot(testFrequncies_hz/10^9, permute(analyticalAmplitude(iQVal, jDiam, :), [3 2 1])*10^12);
+       plot(testFrequncies_hz/10^9, permute(analyticalAmplitude(iQVal, jDiam, :), [3 2 1])*10^15, 'color', cols(jDiam,:));
 
        subplot(5,3,(iQVal-1)*3+2); hold on
-       plot(testFrequncies_hz/10^9, permute(analyticalAbsorbtion(iQVal, jDiam, :), [3 2 1]));
+       plot(testFrequncies_hz/10^9, permute(analyticalAbsorbtion(iQVal, jDiam, :)*100, [3 2 1]), 'color', cols(jDiam,:));
        
        subplot(5,3,(iQVal-1)*3+3); hold on
-       plot(testFrequncies_hz/10^9, permute(analyticalStress(iQVal, jDiam, :), [3 2 1]));
+       plot(testFrequncies_hz/10^9, permute(analyticalStress(iQVal, jDiam, :)/1000, [3 2 1]), 'color', cols(jDiam,:));
+        
+%         figure(fig1)
+%         plot(testFrequncies_hz/10^9, permute(analyticalAbsorbtion(iQVal, jDiam, :)*100, [3 2 1]), 'color', cols(jDiam,:));
+%         
+%         figure(fig2)
+%         plot(testFrequncies_hz/10^9, permute(analyticalStress(iQVal, jDiam, :)/1000, [3 2 1]), 'color', cols(jDiam,:));
    end
    
-   % Plot weighted sum - only makes sense for absorbtion
+   % Plot weighted sum 
    subplot(5,3,(iQVal-1)*3+2); hold on
-   temp = permute(analyticalAbsorbtion(iQVal, :, :), [2 3 1]);
+   temp = permute(analyticalAbsorbtion(iQVal, :, :)*100, [2 3 1]);
    plot(testFrequncies_hz/10^9, sum(temp), 'k');
+   
+   % Plot results from single size model with variable charge
+   subplot(5,3,(iQVal-1)*3+1); hold on 
+   plot(testFrequncies_hz/10^9, analyticalAmplitude_varyingCharge*10^15, 'b')
+   
+   subplot(5,3,(iQVal-1)*3+2); hold on
+   plot(testFrequncies_hz/10^9, analyticalAbsorbtion_varingCharge*100, 'b')
+   title(sprintf('%.1f', QValuesToTest(iQVal)))
+   
+   subplot(5,3,(iQVal-1)*3+3); hold on
+   plot(testFrequncies_hz/10^9, analyticalStress_varyingCharge/1000, 'b')
+
+%     figure(fig1)
+%     temp = permute(analyticalAbsorbtion(iQVal, :, :)*100, [2 3 1]);
+%     f1 = plot(testFrequncies_hz/10^9, sum(temp), 'm');
+%     f2 = plot(testFrequncies_hz/10^9, analyticalAbsorbtion_varingCharge*100, 'b');
+%     set(gca,'TickDir','out');
+%     legend([f1 f2], 'Sum of variable size', 'Single size')
+%     xlabel('Frequency (GHz)')
+%     ylabel('Absorbtion (%)')
+%     set(gcf, 'Position', [50 50 500 500/1.61]);
+%     
+%     figure(fig2)
+%     plot(testFrequncies_hz/10^9, analyticalStress_varyingCharge/1000, 'b')
+%     set(gca,'TickDir','out');
+%     xlabel('Frequency (GHz)')
+%     ylabel('Stress (kPa)'); 
+%     set(gcf, 'Position', [50 50 500 500/1.61]);
+%     ylim([0 6]);
+%     set(gca, 'YTick', 0:2:6);
 end
+
+% figure;
+% colormap(cols)
+% hCB = colorbar;
+% set(hCB, 'Ticks', [0 25 50 75 100]/100, 'TickLabels',{'80', '90', '100', '100', '120'},...
+%     'YAxisLocation','right','TickDirection','out');
+% title('Virion diameter (nm)')
