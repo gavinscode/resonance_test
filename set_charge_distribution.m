@@ -1,17 +1,30 @@
 %% To determine q (charge distribution) values
 
-%%% 10.5 may be a bit off as bend in curve
-% From Fig. 3B of Yang 2016
-calcFrequencies_hz = [6 8.22 10.5 11.25 13]*10^9;
+% From Fig. 3B of Yang 2016 - measured in imageJ
+% Peak is actually at 8.3
+calcFrequencies_hz = [6 8.22 10.5 11.5 13.25]*10^9;
 
 calcFrequencies_rad = calcFrequencies_hz*2*pi;
 
-calcAbsorbtions = [0.1 0.21 0.1 0.05 0.001];
+calcAbsorbtions = [9.75 21.6 9.94 3.56 0.001]/100;
 
 % from Ellison et al. 1996 pg 240 Pottel 1980, 25oC
-% Exact freqs used are: 
-% 6.000 8.243 10.450 11.320 13.140
-calcRelativePermitivity = [71.92 67.13 61.10 59.46 55.27]; % Relative, 
+permitivityValues = [73.11, 73.19, 73.13, 72.71, 72.63, 72.25, 71.92, 71.50, ... 
+    71.21, 70.34, 69.45, 69.74, 69.24, 68.78, 68.69, 67.86, 67.13, 66.77, ... 
+    65.38, 63.76, 63.04, 61.74, 62.04, 61.10, 59.46, 58.49, 58.18, 55.78, ... 
+    55.27, 54.03, 53.47, 52.63]; 
+
+permitivityFrequenceis = [5.306, 5.323, 5.433, 5.536, 5.638, 5.853, 6.000, ...
+    6.145, 6.300, 6.729, 6.850, 6.958, 7.267, 7.406, 7.681, 7.850, 8.243, ...
+    8.579, 8.979, 9.516, 10.010, 10.150, 10.230, 10.450, 11.320, 11.730, ...
+    12.000, 12.770, 13.140, 13.380, 13.820, 14.230];
+
+if length(permitivityValues) ~= length(permitivityFrequenceis)
+   error('Incorectly copied values') 
+end
+
+calcRelativePermitivity = interp1(permitivityFrequenceis, permitivityValues, ...
+    calcFrequencies_hz/10^9, 'linear','extrap');
 
 % Calcualte values for q
 % Eqn 7: q omitted as it is solved for and E is ommited as it will cancel later
