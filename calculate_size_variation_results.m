@@ -82,12 +82,31 @@ valuesReducedMass_virus_kg = valuesMass_virus_kg*(coreFraction*(1-coreFraction))
 
 %%% May wish to try with orignal reduced mass for comparison
 
+valuesFrequncy_virus_hz_test = zeros(length(valuesDiameter_virus_m),1);
+
+guess = 10^10;
+
+%%% All results are inconsistent with literature
+
+for i = 1:length(valuesDiameter_virus_m)
+
+    valuesFrequncy_virus_hz_test(i) = calcualtesphereresonance(valuesDiameter_virus_m(i)/2, ...
+        'sph', 1, 0, 1434, 0.5, guess);
+
+    guess = valuesFrequncy_virus_hz_test(i);
+end
+
 % From Savoit - Lamb calculator using spherical, L=1, N=0 (1 on page)
     % https://saviot.cnrs.fr/lamb/index.html
     % Set Vl=1434 and Vt=717 from trial and error so 100 nm freq = 8.2 GHz
     % Not much lower than lower end on 2009 paper
+    
 valuesFrequncy_virus_hz = [10.943; 10.259; 9.655; 9.119; 8.639; 8.207; 7.816; ...
     7.461; 7.137; 6.839; 6.566]*10^9;
+
+figure; hold on
+plot(valuesFrequncy_virus_hz, 'b')
+plot(valuesFrequncy_virus_hz_test, 'gx')
 
 valuesFrequncy_virus_rad = valuesFrequncy_virus_hz*2*pi;
 
