@@ -20,6 +20,7 @@ measuredQualityFactor = 1.95;
 measuredAbsorbtion = 0.21; % Max
 
 % Correct reduced mass for 100 nm: 8.77*10^-21;
+%%% Maybe this should be *9.8
 reducedMass_kg = 14.5*1.6605*10^-21; % Convert from MDa
 
 % Note this is density of virions in solution, not mass/density of particles

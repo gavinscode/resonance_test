@@ -1,41 +1,69 @@
-% For radius
+% For radius and mass (convert from MDa to kg)
 %%% All data for spherical, could consider variation from spherical as well.
 
 % A: From Parupudi 2017 - H3N2, possibly inactivated
-diameterMean_range_m_A = [114 153]*10^-9; % Table 1 - means
+diameterMean_m_A = 114*10^-9; % Table 1 - mean cryoTEM
+    % Distribution skewed low has top tail
+    
+diameterPeak_m_A = 120*10^-9; % Figure S2 - measured from plot
+    % Bin size is ~20, so overlaps mean
+    
+diameterRange_m_A = [60 160]*10^-9; % Figure S2 - measured from plot
 
-diameterRange_m_A = [70 300]*10^-9; % Figure 1 - extremes from all
+diameterTopTail_m_A = 200*10^-9; % Figure S2 - measured from plot
 
-%%% Re take std as percentage of mean given range %%%
-    % Probably more consistent
-% C: From Ruigrok 1984 for X49 - H3N2 x H1N1
-diameterMean_m_C = 140*10^-9;
+%%% Compare density to general
+massPeak_range_kg_A = [229 249]*1.6605*10^-21; % From table 2, mean values probably effected by aggregation
 
-diameterSD_m_C = 12*10^-9;
+massCV_range_A = [66/265 147/306]; % From table 2, SD on Mean.
 
-% D: From Ruigrok 1985 - For X31 (his other papers are in these ranges)
-diameterMean_range_m_D = [123 138]*10^-9;
+massNominal_kg_A = 206*1.6605*10^-21; % From supp.
 
-diameterSD_range_m_D = [12 43]*10^-9;
+massNominal_range_kg_A = [144 269]*1.6605*10^-21;
 
-% E: From Moules 2011
-diameterMean_range_m_E = [88.2 - 99.0]*10^-9;
+%%% This results in a very high density
 
-diameterSD_range_m_E = [8.5 - 18.0]*10^-9;
+% B: From Ruigrok 1984 for X49 - H3N2 x H1N1
+diameterMean_m_B = 140*10^-9; 
 
-% For density - convert from MDa to N
-massMean_range_kg_A = [265 306]*1.6605*10^-21; % From table 2
+diameterCV_B = 12*10^-9/diameterMean_m_B;
 
-massSD_range_kg_A = [66 147]*1.6605*10^-21; % From table 2
-% A - Supp lists monomer value as 206 [144 268], unclear what this represents?
+massMean_kg_B = 161*1.6605*10^-21;
+    % Distribution skewed low has top tail
 
-massMean_kg_C = 161*1.6605*10^-21;
+massPeak_kg_B = 155*1.6605*10^-21;
+    % Bin size is 10, so nearly at mean
+    
+massCV_B = 17*1.6605*10^-21/massMean_kg_B;
 
-massSD_kg_C = 17*1.6605*10^-21;
+massRange_kg_B = [90 210]*1.6605*10^-21;
 
-massRange_kg_C = [90 240]*1.6605*10^-21;
+massTopTail_kg_B = 240*1.6605*10^-21;
 
-%%% reduced mass fraction...?
+%%% This results in a very high density
+
+% C: From Ruigrok 1985 - For X31 (his other papers are in these ranges)
+diameterMean_range_m_C = [124 138]*10^-9;
+
+diameterCV_range_C = [24/130 43/135 42/127 36/138 23/129 14/127 12/124 17/129 18/131 23/129]; % From table 1
+
+diameterCV_range_C = [min(diameterCV_range_C) max(diameterCV_range_C)];
+
+% D: From Moules 2011
+diameterMean_range_m_D = [88.2 99.0]*10^-9;
+
+diameterCV_range_D = [8.9/88.2 18.0/99.0 8.5/91.7 12.2/96.0]; % From supp.
+
+diameterCV_range_D = [min(diameterCV_range_D) max(diameterCV_range_D)];
+
+% E: From Harris 2006
+diameterMean_m_E = 120*10^-9; 
+
+diameterRange_m_E = [84 170]*10^-9;
+
+% Core mass fraction - Schlze 1973
+% Note, this is of RNP, not including the protein capsid
+coreFraction_range = [0.8 1.1]*10/100;
 
 % For sound velocity
 % Assume ratio of 0.5 from longitudinal to transverse
@@ -49,8 +77,8 @@ massRange_kg_C = [90 240]*1.6605*10^-21;
 % For fracture stress
 %%% Need information for ruptering capsids
 
-% B: From Li 2011 - for lipid membrane
-fractureForceRange_N_B = [0.25 2000]*10^-12; %N
+% From Li 2011 - for lipid membrane
+fractureForceRange_N = [0.25 2000]*10^-12; %N
 
 % Force/Area given 30 nm radius AFM tip
-fractureStress_Pa_B = fractureForceRange/(pi*(30*10^-9)^2); %Pa
+fractureStress_Pa = fractureForceRange/(pi*(30*10^-9)^2); %Pa

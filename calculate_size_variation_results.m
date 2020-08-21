@@ -18,6 +18,8 @@ rangeDiameter_virus_m = [80 120]/10^9;
 % From Ruigrok 1984 for X49 - H3N2 x H1N1
 % Mass looks to have somewhat skewed normal distrubiotn, with tail above 200 nm
 %%% Could be better to model as skew disturbiton
+
+%%% Maybe this should be *9.8
 averageMass_X49_kg = 161*1.6605*10^-21; % Convert from MDa
 
 stdMass_X49_kg = 17*1.6605*10^-21;
@@ -42,6 +44,8 @@ averageVolume_X49_m3 = 4/3*pi*(averageDiameter_X49_m/2)^3;
 stdVolume_X49_m3 = 4/3*pi*((averageDiameter_X49_m+stdDiameter_X49_m)/2)^3 - ...
     averageVolume_X49_m3;
 
+% Note, density requires multiplication by gravity
+%%% Note taken into account in original paper
 virusDensity = averageMass_X49_kg/averageVolume_X49_m3;
 
 % Std ratio between measured and calculated 
