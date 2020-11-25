@@ -1,3 +1,5 @@
+%%% From initial testing
+
 % Influenza parameters from Yang 2016
 resonanceFrequency_hz = 8.22*10^9; 
 

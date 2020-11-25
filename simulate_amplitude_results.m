@@ -1,3 +1,5 @@
+% Compare numberical to analytical solution for single size
+
 % From  Yang 2016, Figure 3B 
 close all;
 clear;

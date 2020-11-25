@@ -1,3 +1,5 @@
+%%% From initial testing
+
 % Display frequncy components in different types of waves
 clear
 

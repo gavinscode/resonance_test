@@ -1,3 +1,5 @@
+%%% Given varying sizes
+
 calculate_absorbtion_results
 
 % Clear ones that are being set/tested
@@ -31,7 +33,7 @@ expectedRangeMass_X49_kg = [-3 3]*stdMass_X49_kg;
 
 % Ratio bewteen actual and expected mass range 
     %- mass range is ~50% larger than expected
-(rangeMass_X49_kg-averageMass_X49_kg)./expectedRangeMass_X49_kg;
+(rangeMass_X49_kg - averageMass_X49_kg)./expectedRangeMass_X49_kg;
 
 averageDiameter_X49_m = 140/10^9;
 

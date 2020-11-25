@@ -1,5 +1,8 @@
 %% To determine q (charge distribution) values
 
+% Given paramters measurment from paper, Q will vary. But this is a fudge
+% to plot the initial absorbtion.
+
 if length(measuredFrequencies_hz) ~= length(measuredAbsorbtions)
    error('Incorectly copied values') 
 end

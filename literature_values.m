@@ -5,42 +5,42 @@
 diameterMean_m_A = 114*10^-9; % Table 1 - mean cryoTEM
     % Distribution skewed low has top tail
     
-diameterPeak_m_A = 120*10^-9; % Figure S2 - measured from plot
-    % Bin size is ~20, so overlaps mean
-    
 diameterRange_m_A = [60 160]*10^-9; % Figure S2 - measured from plot
 
 diameterTopTail_m_A = 200*10^-9; % Figure S2 - measured from plot
 
-%%% Compare density to general
-massPeak_range_kg_A = [229 249]*1.6605*10^-21; % From table 2, mean values probably effected by aggregation
+%%% Not using mass
+% massPeak_range_kg_A = [229 249]*1.6605*10^-21; % From table 2, mean values probably effected by aggregation
+% 
+% massCV_range_A = [66/265 147/306]; % From table 2, SD on Mean.
+% 
+% massNominal_kg_A = 206*1.6605*10^-21; % From supp.
+% 
+% massNominal_range_kg_A = [144 269]*1.6605*10^-21;
 
-massCV_range_A = [66/265 147/306]; % From table 2, SD on Mean.
+% Density is probably a more reliable aggregate measure
+hydratedDensity_g_ml_A = 1.10; %*1000 for kg/l
 
-massNominal_kg_A = 206*1.6605*10^-21; % From supp.
-
-massNominal_range_kg_A = [144 269]*1.6605*10^-21;
-
-%%% This results in a very high density
+dryFraction_A = 0.4; % Water is 1.5 times dry weight
 
 % B: From Ruigrok 1984 for X49 - H3N2 x H1N1
-diameterMean_m_B = 140*10^-9; 
+%%% Don't use mass, probably inflated from negative staining.
+% diameterMean_m_B = 140*10^-9; 
+% 
+% diameterCV_B = 12*10^-9/diameterMean_m_B;
 
-diameterCV_B = 12*10^-9/diameterMean_m_B;
-
-massMean_kg_B = 161*1.6605*10^-21;
-    % Distribution skewed low has top tail
-
-massPeak_kg_B = 155*1.6605*10^-21;
-    % Bin size is 10, so nearly at mean
-    
-massCV_B = 17*1.6605*10^-21/massMean_kg_B;
-
-massRange_kg_B = [90 210]*1.6605*10^-21;
-
-massTopTail_kg_B = 240*1.6605*10^-21;
-
-%%% This results in a very high density
+% not using mass
+% massMean_kg_B = 161*1.6605*10^-21;
+%     % Distribution skewed low has top tail
+% 
+% massPeak_kg_B = 155*1.6605*10^-21;
+%     % Bin size is 10, so nearly at mean
+%     
+% massCV_B = 17*1.6605*10^-21/massMean_kg_B;
+% 
+% massRange_kg_B = [90 210]*1.6605*10^-21;
+% 
+% massTopTail_kg_B = 240*1.6605*10^-21;
 
 % C: From Ruigrok 1985 - For X31 (his other papers are in these ranges)
 diameterMean_range_m_C = [124 138]*10^-9;
@@ -63,12 +63,17 @@ diameterRange_m_E = [84 170]*10^-9;
 
 % Core mass fraction - Schlze 1973
 % Note, this is of RNP, not including the protein capsid
-coreFraction_range = [0.8 1.1]*10/100;
+coreFraction_range_F = [0.8 1.1]*10/100;
 
-% For sound velocity
+hydratedDensity_g_ml_F = 1.185; %*1000 for kg/l
+
+% For sound velocity - longitudional
 % Assume ratio of 0.5 from longitudinal to transverse
+% G: From Hartschuh 2008 for WIW, 140 nm
+soundSpeed_m_s_G = 2900; %+- 50
 
-
+% H: Stephanidis 2007
+soundSpeed_m_s_H = 1920; %+- 70
 
 % For charge
 %%% Where are there opposing charges: core, capsid, lipid membrane?

@@ -5,6 +5,9 @@ function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL,
        guess = 10^10; 
     end
      
+%%% Check this
+    %%% Need to get arbitrarily higher orders as well
+
 %     testW = (0.1:0.1:200)*10^9*2*pi;
 %     
 %     temp = zeros(length(testW),1);

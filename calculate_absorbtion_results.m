@@ -1,3 +1,5 @@
+%%% Given a single sphere size
+
 %close all;
 clear;
 clc
