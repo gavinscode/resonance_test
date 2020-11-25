@@ -84,6 +84,7 @@ coreFraction = 0.1;
 
 valuesMass_virus_kg = 4/3*pi*(valuesDiameter_virus_m/2).^3*virusDensity*massScaleUp;
 
+error('Check reduced mass given fraction is correct')
 valuesReducedMass_virus_kg = valuesMass_virus_kg*(coreFraction*(1-coreFraction));
 
 %%% May wish to try with orignal reduced mass for comparison
