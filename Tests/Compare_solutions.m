@@ -13,6 +13,8 @@ warning('Murray calcs only valid at mR = m/2')
 % Murray solution gives same max power, but at different freq. 
     % Thus amplitude and phase differ at some freqs
 
+% Solutions derivied from Matthew Schwartz Lecture 2 Wave course
+
 if testSymolically
     syms k m b q E t w
     
