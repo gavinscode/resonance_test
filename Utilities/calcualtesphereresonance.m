@@ -1,39 +1,48 @@
-function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL, speedRatio, guess)
-    soundSpeedT = soundSpeedL*speedRatio;
+function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL, soundSpeedT, guess)
+    
+    % Check sound is ratio
+    if soundSpeedT < 1
+        error('Ratio entered for tranverse speed?')
+    end
+    
+    % n is indexed from zero.
+    n = n + 1;
     
     if isempty(guess)
        guess = 10^10; 
     end
-     
-%%% Check this
-    %%% Need to get arbitrarily higher orders as well
-
-%     testW = (0.1:0.1:200)*10^9*2*pi;
-%     
-%     temp = zeros(length(testW),1);
-%     
-%     for i = 1:length(testW)
-%         temp(i) = lambseqn_sph_1(testW(i), radius, soundSpeedL, soundSpeedT);
-%     end
-%     
-%     figure;
-%     plot(testW/2/pi, temp); xlabel('Frequency (Hz)');
-%     ylim([-20 20])
     
-    % Only implemented for spherical functions with l = 1, n = 0
+    % Only implemented for spherical functions with l = 1
     if mode == 'sph' & l == 1
         
-        %%% There are several, should search and pick lowest
-        %n selects... (n zero is 1st)...
+        if n > 1 
+           error('not yet implemented for higher order modes') 
+        end
         
-        %use optimizer to find fine intersection
-        % f = @(x)lambseqn_sph_1(x, radius, soundSpeedL, soundSpeedT);
-        %[angularFrequency] = fminsearch(f,guess*2*pi);
+        angularFrequency = zeros(n,1);
 
-        angularFrequency = lambseqn_sph_1(guess*2*pi, radius, soundSpeedL, soundSpeedT);
+        f = @(x)lambseqn_sph_1(x, radius, soundSpeedL, soundSpeedT);
         
-    else
-        error('mode not implemented')
+        for iMode = 1:n
+        
+            %use optimizer to find fine intersection
+            if iMode == 1
+                % on first mode, just search from base
+                angularFrequency(iMode) = fzero(f, guess*2*pi);
+            else
+                % for higher mode, search above last
+                
+                %%% Need a good strategy - maybe find each singularity with
+                %%% fminbound and then search between them
+                
+%                 angularFrequency(iMode) = fzero(f, angularFrequency(iMode-1) + ...
+%                     [1*10^9*2*pi angularFrequency(iMode-1)*4]);
+            end
+        end
+    elseif mode == 'sph' & l ~= 1
+        error('Only dipolar spherical mode is implemented')
+    elseif mode ~= 'sph'
+        error('No torsional modes are not implemented')
     end
 
     frequency = angularFrequency/2/pi;
@@ -43,23 +52,13 @@ end
 % implements Eqn 1 from Sun 2015
 function result = lambseqn_sph_1(w, r, cl, ct)
 
-    % Currently relies on guess a lot...
-    % Better strategy could be to find inflection points, then search for zeros between them.
-
     if ~isempty(w)
         guess = w;
     end
     
-    syms omega;
-    
-    % reduced frequncies
-    xi = (omega*r/cl); %squiggle
+    xi = (w*r/cl); %squiggle
 
-    eta = (omega*r/ct); %n
-    
-%     xi = (w*r/cl); %squiggle
-% 
-%     eta = (w*r/ct); %n
+    eta = (w*r/ct); %n
     
     %from wikipedia page on bessel functions
     j1_xi = sin(xi)/xi^2 - cos(xi)/xi;
@@ -69,12 +68,7 @@ function result = lambseqn_sph_1(w, r, cl, ct)
     j2_eta = (3/eta^2 - 1)*sin(eta)/eta - 3*cos(eta)/eta^2;
     
     % from Sun 2014
-%     result = 4*j2_xi/j1_xi*xi - eta^2 + ...
-%         2*j2_eta/j1_eta*eta;
-    
-    eqn =  4*j2_xi/j1_xi*xi - eta^2 + ...
-        2*j2_eta/j1_eta*eta == 0;
-    
-    result = vpasolve(eqn, omega, guess);
+    result = 4*j2_xi/j1_xi*xi - eta^2 + ...
+        2*j2_eta/j1_eta*eta;
 end
 

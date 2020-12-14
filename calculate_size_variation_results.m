@@ -98,7 +98,7 @@ guess = 10^10;
 for i = 1:length(valuesDiameter_virus_m)
 
     valuesFrequncy_virus_hz_test(i) = calcualtesphereresonance(valuesDiameter_virus_m(i)/2, ...
-        'sph', 1, 0, 1434, 0.5, guess);
+        'sph', 1, 0, 1434, 1434*0.5, guess);
 
     guess = valuesFrequncy_virus_hz_test(i);
 end
@@ -174,7 +174,7 @@ for iQVal = 1:length(QValuesToTest)
 
             powerFlux = 0.5*sqrt(relativePermitivtyInterpolated(kFreq))*VACCUM_PERMITIVITY*LIGHT_SPEED;
 
-            % Eqn 10
+            % Eqn 10 - cross section, m^2
             theta_absorbtion = analyticalPower/powerFlux;
 
             % Eqn 13 - solution for absorbtion
