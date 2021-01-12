@@ -1,4 +1,9 @@
 % From curves in SPIE paper
+% Needed to determine apertue area
+% Also wanted to check most plausible number of spheres for each size 
+
+%%% At resonance, should be a D^4 relation for cross-section
+% - so 10^(-D^4*n/A)*I_source - could check, but seems most likely for given order of spheres...
 
 % Source values
 I_source = [2.92, 2.58, 2.60, 2.33, 1.76, 1.18, 0.69, 0.42, 0.32]; %mV
@@ -20,10 +25,13 @@ testFrequncy = [100, 125, 150, 175, 200, 225, 250, 275, 300]; % GHz
 numberSpheres = [3.6*10^15, 1.4*10^16, 1.6*10^16];
 %numberSpheres = fliplr(numberSpheres);
 
-apertureArea = ExCrossSec_13*10^-21*-numberSpheres(3)/log(I_trans_13/I_source);
+apertureArea = ExCrossSec_13*10^-21*-numberSpheres(3)./log(I_trans_13./I_source);
+
+%areaToUse = find(testFrequncy > 120 & testFrequncy < 230);
+areaToUse = find((I_source-I_trans_13)./I_source > 0.25);
 
 % Just avg between 'reliable' points
-avgArea = mean(apertureArea(find(testFrequncy > 120 & testFrequncy < 230)))
+avgArea = mean(apertureArea(areaToUse))
 
 apertureRadius = sqrt(avgArea/pi)*1000
 
@@ -41,6 +49,8 @@ plot(testFrequncy, I_source, 'k')
 
 plot(testFrequncy, I_trans_13, 'r')
 
+plot(testFrequncy(areaToUse), apertureArea(areaToUse), 'rx')
+
 plot(testFrequncy, I_trans_10p4_calc, 'xm')
 
 plot(testFrequncy, I_trans_8_calc, 'xb')
@@ -52,5 +62,8 @@ subplot(1,2,2); hold on;
 
 plot(testFrequncy, apertureArea, 'r')
 
+plot(testFrequncy(areaToUse), apertureArea(areaToUse), 'rx')
+
 line([testFrequncy(1) testFrequncy(end)], [avgArea avgArea])
+
 title('Aperture area')

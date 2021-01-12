@@ -8,13 +8,15 @@ sizesToUse = [1 4 6];
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 frequencyRange = (100:300)*10^9*2*pi;
 
+% Blurring filter from source bandwidth
+
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
 
     % Get calcualted parameter values
         % Note, all frequenciesa are in radians
     resonance = calcualtesphereresonance(nanocrystalSize_m(sizeIndex)/2, ...
-            'sph', 1, 2, CdSeVelocity_mps(1), CdSeVelocity_mps(2), 100*10^9)*2*pi;
+            'sph', 1, 0, CdSeVelocity_mps(1), CdSeVelocity_mps(2), 100*10^9)*2*pi;
     
     coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
     
@@ -27,23 +29,36 @@ for iSize = 1:length(sizesToUse)
     
     reducedMass = coreMass*shellMass/(coreMass + shellMass);
     
+    %%% Q is an unkown, unsure how it should vary with size
     systemQ = nanocrystalFreqResonance_hz(sizeIndex)/nanocrystalFreqBandwidth_hz(sizeIndex);
     
     systemSpring = resonance^2*reducedMass;
     
     systemDamp = resonance*reducedMass/systemQ;
 
-    %%% Add solution for Q    
+    %%% q is an unknown and should vary with the square of size 
     qToUse = sqrt(nanocrystalThetaEx_m2(sizeIndex) * nanocrystalFreqResonance_hz(sizeIndex) * ...
         reducedMass*VACCUM_PERMITIVITY*LIGHT_SPEED/systemQ);  
     
-    analyticalAbsorbtion = zeros(length(testFrequncies_hz), 1);
+    analyticalAbsorbtion = zeros(length(frequencyRange), 1);
     
-    for kFreq = 1:length(testFrequncies_hz)
+    extinctionCrossSection = zeros(length(frequencyRange), 1);
+    
+    if freqResolution_Ghz(sizeIndex) == 50
+        % convert freq resolution (when FWHM) to sigma
+        sigma = freqResolution_Ghz(sizeIndex)/(2*sqrt(2*log(2)));
+        
+        sourceSpectra = 1/(sigma*sqrt(2*pi))*exp(-((1:200)-100).^2/...
+            (2*(sigma)^2));
+    else
+        error('No conversion for resolution to sigma')
+    end
+    
+    for jFreq = 1:length(frequencyRange)
         % Eqn 7
         analyticalAmplitude = qToUse./(reducedMass*...
             sqrt((resonance^2 - frequencyRange(jFreq)^2)^2 + ...
-            (resonance(jDiam)*frequencyRange(jFreq)/systemQ).^2));
+            (resonance*frequencyRange(jFreq)/systemQ).^2));
 
         % Eqn 9
         analyticalPower = resonance * ...
@@ -53,17 +68,29 @@ for iSize = 1:length(sizesToUse)
         powerFlux = 0.5*VACCUM_PERMITIVITY*LIGHT_SPEED;
 
         % Eqn 10
-        absorbtionCrossSection = analyticalPower/powerFlux;
+        extinctionCrossSection(jFreq) = analyticalPower/powerFlux;
         
-        %%% Convert to absorbtion - sum absorbtion across pulse
-            % Convert back to extinciton
-        
-       % Eqn 13 - solution for absorbtion
-       analyticalAbsorbtion(jFreq) = (1-exp(-absorbtionCrossSection*...
-            nanocrystalNumber/excitationArea));
+        % Eqn 13 - solution for absorbtion
+        analyticalAbsorbtion(jFreq) = (1-exp(-extinctionCrossSection(jFreq)*...
+            nanocrystalNumber(sizeIndex)/apertureArea));
     
     end
 
-   %%% Convoluve with 50 GHz bandwidth here...
-   
+    % Smear absorbtion spectra with source width
+    smearedAbsorbtion = conv(analyticalAbsorbtion, sourceSpectra, 'same');
+  
+    % Convert back to extinction
+    smearedCrossSection = -apertureArea/nanocrystalNumber(sizeIndex)*...
+        log(1-smearedAbsorbtion);
+    
+    figure; 
+    subplot(1,2,1); hold on;
+    plot(frequencyRange/2/pi, analyticalAbsorbtion, 'b')
+    
+    plot(frequencyRange/2/pi, smearedAbsorbtion, 'r')
+    
+    subplot(1,2,2); hold on;
+    plot(frequencyRange/2/pi, extinctionCrossSection, 'b')
+    
+    plot(frequencyRange/2/pi, smearedCrossSection, 'r')
 end
