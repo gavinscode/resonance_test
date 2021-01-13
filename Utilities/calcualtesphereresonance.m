@@ -120,6 +120,8 @@ function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL,
                         subplot(1,2,2);
                         plot(zeroFrequency(zerosFound)/2/pi/10^9, pointValue, 'ko');
                     end
+                    
+                    its = 1;
                 end
             end
             
@@ -129,7 +131,7 @@ function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL,
          
             its = its + 1;
             
-            if its > n*10^6
+            if its > 10^10
                error('Not finding zeros, maybe problem with step size or derivative limit') 
             end
         end

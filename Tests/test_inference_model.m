@@ -3,12 +3,67 @@ clear; close all; clc
 % Load data
 nanosphere_reference
 
-sizesToUse = [1 4 6];
+% Calc q and Q values from original to get rough idea on relationship
+sizesToUse = 1:6;    
 
+qEstimate = zeros(length(sizesToUse),1);
+
+QEstimate = zeros(length(sizesToUse),1);
+
+for iSize = 1:length(sizesToUse)
+    sizeIndex = sizesToUse(iSize);
+
+    QEstimate(iSize) = nanocrystalFreqResonance_hz(sizeIndex)/nanocrystalFreqBandwidth_hz(sizeIndex);
+
+    coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
+    
+    totalVolume = 4/3*pi*(nanocrystalSize_m(sizeIndex)/2).^3;
+    
+    coreMass = coreVolume*CdSeDensity_kgpm3;
+
+    % Take difference in volume
+    shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
+    
+    reducedMass = coreMass*shellMass/(coreMass + shellMass);
+    
+    qEstimate(iSize) = sqrt(nanocrystalThetaEx_m2(sizeIndex) * nanocrystalFreqResonance_hz(sizeIndex) * ...
+        reducedMass*VACCUM_PERMITIVITY*LIGHT_SPEED./QEstimate(iSize)); 
+end
+
+figure;
+subplot(1,2,1)
+plot(nanocrystalSize_m(sizesToUse)*10^9, QEstimate, 'x-')
+title('Quality factor');
+ylim([0 15]); xlim([5 15]);
+
+subplot(1,2,2); hold on
+plot(nanocrystalSize_m(sizesToUse)*10^9, qEstimate/(1.602176634*10^-19), 'x-')
+title('Charge (in e)');
+ylim([0 150]); 
+xlim([0 15]);
+
+% Calc 1 to 3rd order polynomials and compare
+
+cols = ['r', 'b', 'g'];
+
+for iOrder = 1:3
+    qPoly = polyfit([0 nanocrystalSize_m], [0 qEstimate'], iOrder);
+    
+    qPoly = polyfit([0 nanocrystalSize_m], [1 qEstimate'], iOrder);
+    
+    qValues = polyval(qPoly, (1:15)/10^9);
+    
+    plot((1:15), qValues/(1.602176634*10^-19), ':', 'color', cols(iOrder))
+    
+end
+
+% Start with sizes measured on 50 GHz Bandwidth
+sizesToUse = [1 4 6];    
+    
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 frequencyRange = (100:300)*10^9*2*pi;
 
-% Blurring filtesr from source bandwidth
+% Blurring filter from source bandwidth
 
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
@@ -29,7 +84,7 @@ for iSize = 1:length(sizesToUse)
     
     reducedMass = coreMass*shellMass/(coreMass + shellMass);
     
-    %%% Q is an unkown, unsure how it should vary with size
+    %%% Q is an unknown, unsure how it should vary with size
     systemQ = nanocrystalFreqResonance_hz(sizeIndex)/nanocrystalFreqBandwidth_hz(sizeIndex);
     
     systemSpring = resonance^2*reducedMass;

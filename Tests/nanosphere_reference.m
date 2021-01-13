@@ -8,7 +8,8 @@ nanocrystalSize_m = [8 8.4 10.1 10.4 11.6 13]*10^-9;
 nanocrystalNumber = [3.6*10^15 NaN NaN 1.4*10^16 NaN 1.4*10^16];
 
 %%% Core variation is indicated in methods paper
-nanocrystalCore_m = [4.3 NaN NaN 4.3 NaN 5.4]*10^-9;
+    % Assumed values for 8.4 10.1 and 11.6
+nanocrystalCore_m = [4.3 4.3 4.3 4.3 5.4 5.4]*10^-9;
 
 % Note: 50 is resolution bandwidth/FWHM
     % 10 is spectral resolution, unsure of relation to gaussian
@@ -17,11 +18,11 @@ freqResolution_Ghz = [50 10 10 50 10 50];
 % Using plot measurments for 8, 8.4 (missing in text), 10.4
 % nanocrystalFreqResonance_hz = [198 241 175 221 170 165]*10^9;
 
-% Using text values for all but 8.4 (missing in text)
+% Using text values for all but 8.4 (typo in text)
 nanocrystalFreqResonance_hz = [210 241 175 200 170 165]*10^9;
 
-% Using text values, 8.4 is missing in text
-nanocrystalFreqBandwidth_hz = [31 NaN 34 40 17 40]*10^9;%+-
+% Using text values for all but 8.4 (typo in text)
+nanocrystalFreqBandwidth_hz = [31 45.70 34 40 17 40]*10^9;%+-
 
 % Using text values for all
 nanocrystalThetaEx_m2 = [0.7*10^-22 1.1*10^-21 1.6*10^-21 2.0*10^-21 4.1*10^-21 5.7*10^-21];
@@ -38,9 +39,9 @@ nanocrystalSizeDist_binCentres_13 = [6.66 10.25 13.85 17.29 20.72]*10^-9;
 nanocrystalSizeDist_Counts_13 = [6 17 49 12 1];
 
 % From Savoit's tool - closer to experiment, should check...
-CdSeVelocity_mps = [3700, 1540];  % m/s 
+%CdSeVelocity_mps = [3700, 1540];  % m/s 
 %From Sun's paper 
-%CdSeVelocity_mps = [3570 1720];  % m/s 
+CdSeVelocity_mps = [3570 1720];  % m/s 
 
 CdSeDensity_kgpm3 = 5810;
 
