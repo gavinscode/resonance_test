@@ -8,7 +8,7 @@ sizesToUse = [1 4 6];
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 frequencyRange = (100:300)*10^9*2*pi;
 
-% Blurring filter from source bandwidth
+% Blurring filtesr from source bandwidth
 
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
@@ -16,7 +16,7 @@ for iSize = 1:length(sizesToUse)
     % Get calcualted parameter values
         % Note, all frequenciesa are in radians
     resonance = calcualtesphereresonance(nanocrystalSize_m(sizeIndex)/2, ...
-            'sph', 1, 0, CdSeVelocity_mps(1), CdSeVelocity_mps(2), 100*10^9)*2*pi;
+            'sph', 0, 4, CdSeVelocity_mps(1), CdSeVelocity_mps(2), 5*10^9, 10^6, 1)*2*pi;
     
     coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
     

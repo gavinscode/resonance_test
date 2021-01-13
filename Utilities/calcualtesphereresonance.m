@@ -1,4 +1,18 @@
-function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL, soundSpeedT, guess)
+function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL, soundSpeedT, startPoint, stepSize, plotFlag)
+    % Guess should ideally be 1, but if first fmincon errors on a Nan,
+    % it needs to be increased
+    
+    if isempty(startPoint)
+       startPoint = 10^9*2*pi; 
+    else
+       startPoint = startPoint*2*pi; 
+    end
+    
+    if isempty(stepSize)
+       stepSize = 10^6*2*pi; 
+    else
+       stepSize = stepSize*2*pi; 
+    end
     
     % Check sound is ratio
     if soundSpeedT < 1
@@ -8,76 +22,122 @@ function [frequency] = calcualtesphereresonance(radius, mode, l, n, soundSpeedL,
     % n is indexed from zero.
     n = n + 1;
     
-    if isempty(guess)
-       guess = 10^10; 
-    end
-    
-    % To test
-    figure; 
-    freqz = (1:0.2:1000)*10^9;
-    values = zeros(length(freqz),1);
-    for i = 1:length(freqz)
-        values(i) = lambseqn_sph_1(freqz(i)*2*pi, radius, soundSpeedL, soundSpeedT);
-    end
-    subplot(1,2,1); hold on;
-    plot(freqz/10^9, values, 'b');
-    subplot(1,2,2); hold on;
-    plot(freqz/10^9, abs(values), 'b');
-    
-    values = zeros(length(freqz),1);
-    for i = 1:length(freqz)
-        values(i) = lambseqn_sph_0(freqz(i)*2*pi, radius, soundSpeedL, soundSpeedT);
-    end
-    subplot(1,2,1); hold on;
-    plot(freqz/10^9, values*200, 'r');
-    subplot(1,2,2); hold on;
-    plot(freqz/10^9, abs(values)*200, 'r');
-    
-    values = zeros(length(freqz),1);
-    for i = 1:length(freqz)
-        values(i) = lambseqn_sph_2(freqz(i)*2*pi, radius, soundSpeedL, soundSpeedT);
-    end
-    subplot(1,2,1); hold on;
-    plot(freqz/10^9, values, 'g');
-    ylim([-200 200])
-    subplot(1,2,2); hold on;
-    plot(freqz/10^9, abs(values), 'g');
-    ylim([0 200])
-    
-    % Only implemented for spherical functions with l = 1
-    if mode == 'sph' & l == 1
+    % Plotting for debug
+    if plotFlag
+        freqz = (0:0.1:1000)*10^9;
+        values = zeros(length(freqz),1);
         
-        if n > 1 
-           error('not yet implemented for higher order modes') 
+        switch l
+            case 0
+                for i = 1:length(freqz)
+                    values(i) = lambseqn_sph_0(freqz(i)*2*pi, radius, soundSpeedL, soundSpeedT)*200;
+                end
+            case 1
+                for i = 1:length(freqz)
+                    values(i) = lambseqn_sph_1(freqz(i)*2*pi, radius, soundSpeedL, soundSpeedT)*200;
+                end
+            case 2
+                for i = 1:length(freqz)
+                    values(i) = lambseqn_sph_2(freqz(i)*2*pi, radius, soundSpeedL, soundSpeedT);
+                end
         end
         
-        angularFrequency = zeros(n,1);
+        figure; 
+        
+        subplot(1,2,1); hold on;
+        plot(freqz/10^9, values, 'g');
+        ylim([-200 200])
+        xlim([0 max(freqz)/10^9])
+        
+        subplot(1,2,2); hold on;
+        plot(freqz/10^9, abs(values), 'g');
+        ylim([0 200])
+        xlim([0 max(freqz)/10^9])
+    end
+    
+    % Only implemented for spherical functions, l = 0, 1, 2
+    if mode == 'sph'
+        % Select function appropriate for l
+        switch l
+            case 0
+                % First function is normal
+                    % Gets zero (crossings)
+                f = @(x)(lambseqn_sph_0(x, radius, soundSpeedL, soundSpeedT));
+                
+                % Second function is  absolute value
+                    % Get zeros (as minima)
+                fabs = @(x)(abs(lambseqn_sph_0(x, radius, soundSpeedL, soundSpeedT)));
+            case 1
+                f = @(x)(lambseqn_sph_1(x, radius, soundSpeedL, soundSpeedT));
+                
+                fabs = @(x)(abs(lambseqn_sph_1(x, radius, soundSpeedL, soundSpeedT)));
 
-        f = @(x)lambseqn_sph_1(x, radius, soundSpeedL, soundSpeedT);
-        
-        for iMode = 1:n
-        
-            %use optimizer to find fine intersection
-            if iMode == 1
-                % on first mode, just search from base
-                angularFrequency(iMode) = fzero(f, guess*2*pi);
-            else
-                % for higher mode, search above last
+            case 2
+                f = @(x)(lambseqn_sph_2(x, radius, soundSpeedL, soundSpeedT));
                 
-                %%% Need a good strategy - maybe find each singularity with
-                %%% fminbound and then search between them
+                fabs = @(x)(abs(lambseqn_sph_2(x, radius, soundSpeedL, soundSpeedT)));
+            otherwise
+                error('Mode not implemented')
+        end
+        
+        zeroFrequency = zeros(n,1);
+
+        zerosFound = 0;
+        
+        oldValue = f(startPoint);
+        
+        its = 1;
+        
+        while zerosFound < n
+            
+            % Step up old value and find difference
+            newValue = f(startPoint+stepSize);
+            
+            deriv = abs(newValue-oldValue);
+            
+            % Check if zero cross
                 
-%                 angularFrequency(iMode) = fzero(f, angularFrequency(iMode-1) + ...
-%                     [1*10^9*2*pi angularFrequency(iMode-1)*4]);
+            if ((oldValue < 0 & newValue > 0) | (oldValue > 0 & newValue < 0)) %& ...
+                % And that difference is not large (indicates discontinuity)    
+                if deriv < 50
+             
+                    % If so, find zero
+                    zerosFound = zerosFound + 1;
+
+                    % fminbnd seems on absolute seem to  work better than fzero on some points, unsure why...
+                    % zeroFrequency(zerosFound) = fzero(f, startPoint);
+
+                    zeroFrequency(zerosFound) = fminbnd(fabs, startPoint, startPoint+stepSize);
+
+                    pointValue = f(zeroFrequency(zerosFound));
+
+                    if plotFlag
+                        %plot(zeroFrequency(zerosFound)/2/pi/10^9, -5, 'kx');
+
+                        subplot(1,2,1);
+                        plot(zeroFrequency(zerosFound)/2/pi/10^9, pointValue, 'ko');
+
+                        subplot(1,2,2);
+                        plot(zeroFrequency(zerosFound)/2/pi/10^9, pointValue, 'ko');
+                    end
+                end
+            end
+            
+            oldValue = newValue;
+            
+            startPoint = startPoint + stepSize;
+         
+            its = its + 1;
+            
+            if its > n*10^6
+               error('Not finding zeros, maybe problem with step size or derivative limit') 
             end
         end
-    elseif mode == 'sph' & l ~= 1
-        error('Only dipolar spherical mode is implemented')
     elseif mode ~= 'sph'
         error('No torsional modes are not implemented')
     end
 
-    frequency = angularFrequency/2/pi;
+    frequency = zeroFrequency/2/pi;
     
 end
 
