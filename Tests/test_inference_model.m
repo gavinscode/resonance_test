@@ -47,10 +47,8 @@ xlim([0 15]);
 cols = ['r', 'b', 'g'];
 
 for iOrder = 1:3
-    qPoly = polyfit([0 nanocrystalSize_m], [0 qEstimate'], iOrder);
-    
-    qPoly = polyfit([0 nanocrystalSize_m], [1 qEstimate'], iOrder);
-    
+    qPoly = polyfit([nanocrystalSize_m], [qEstimate'], iOrder);
+
     qValues = polyval(qPoly, (1:15)/10^9);
     
     plot((1:15), qValues/(1.602176634*10^-19), ':', 'color', cols(iOrder))
@@ -68,11 +66,6 @@ frequencyRange = (100:300)*10^9*2*pi;
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
 
-    % Get calcualted parameter values
-        % Note, all frequenciesa are in radians
-    resonance = calcualtesphereresonance(nanocrystalSize_m(sizeIndex)/2, ...
-            'sph', 0, 4, CdSeVelocity_mps(1), CdSeVelocity_mps(2), 5*10^9, 10^6, 1)*2*pi;
-    
     coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
     
     totalVolume = 4/3*pi*(nanocrystalSize_m(sizeIndex)/2).^3;
@@ -83,6 +76,19 @@ for iSize = 1:length(sizesToUse)
     shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
     
     reducedMass = coreMass*shellMass/(coreMass + shellMass);
+    
+    coreFraction = coreMass/(coreMass + shellMass);
+    
+    avgLongVel = CdSeVelocity_mps(1)*coreFraction + ...
+                CdTeVelocity_mps(1)*(1-coreFraction);
+            
+    avgTransVel = CdSeVelocity_mps(2)*coreFraction + ...
+        CdTeVelocity_mps(2)*(1-coreFraction);
+    
+     % Get calcualted parameter values
+        % Note, all frequenciesa are in radians
+    resonance = calcualtesphereresonance(nanocrystalSize_m(sizeIndex)/2, ...
+            'sph', 1, 0, avgLongVel, avgTransVel, 5*10^9, 10^6, 1)*2*pi;
     
     %%% Q is an unknown, unsure how it should vary with size
     systemQ = nanocrystalFreqResonance_hz(sizeIndex)/nanocrystalFreqBandwidth_hz(sizeIndex);

@@ -38,17 +38,32 @@ nanocrystalSizeDist_Counts_10p4 = [2 9 18 16 5 5];
 nanocrystalSizeDist_binCentres_13 = [6.66 10.25 13.85 17.29 20.72]*10^-9;
 nanocrystalSizeDist_Counts_13 = [6 17 49 12 1];
 
-% From Savoit's tool - closer to experiment, should check...
-%CdSeVelocity_mps = [3700, 1540];  % m/s 
-%From Sun's paper 
-CdSeVelocity_mps = [3570 1720];  % m/s 
+% Materials - CdSe is core, CdTe is shell
+% From Savoit's app
+% just using this (no CdTe fraction) fit's in middle of experimental points
+% CdSeVelocity_mps = [3700, 1540];  % m/s 
 
-CdSeDensity_kgpm3 = 5810;
+% From Sun's paper 
+% just using this (no, CdTe fraction, as Sun did), still towards higher points
+% using both, still tends towards higher points
+%CdSeVelocity_mps = [3570 1720];  % m/s 
 
-CdTeVelocity_mps = [3411, 1756]; % m/s
+%CdSeDensity_kgpm3 = 5810;        % kg/m^3  
 
-warning('Need to get core density properly')
-CdTeDensity_kgpm3 = [5810]; 
+%CdTeVelocity_mps = [3411, 1756]; % m/s
+
+% From Adachi's book
+% using both for [111] tends towards lower points
+% using both for [100] fit's in middle
+% Speeds for 100
+CdSeVelocity_mps = [3430 1980];  % m/s 
+
+CdSeDensity_kgpm3 = 5664;        % kg/m^3
+
+CdTeVelocity_mps = [3020 1860];  % m/s 
+
+CdTeDensity_kgpm3 = 5856;        % kg/m^3 
+
 
 % From Calc in get_aperture file
 apertureArea = 2.10*10^-4;

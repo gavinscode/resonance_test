@@ -5,13 +5,41 @@ nanosphere_reference
 
 sizesToUse = [1 4 6];
 
-diametersToCalc = (6:3:15)*10^-9;
+diametersToCalc = (6:2:16)*10^-9;
 
 % For 0th, 1st and 2nd modes
     % Set to -1 for no zeros (counted from 0)
 zerosToCalc = [0 1 1];
 
 zerosCols = ['r', 'b', 'g'];
+
+% Get core to shell mass fraction
+coreFraction = zeros(length(sizesToUse),1);
+
+for iSize = 1:length(sizesToUse)
+    sizeIndex = sizesToUse(iSize);
+    
+    coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
+    
+    totalVolume = 4/3*pi*(nanocrystalSize_m(sizeIndex)/2).^3;
+    
+    coreMass = coreVolume*CdSeDensity_kgpm3;
+
+    % Take difference in volume
+    shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
+    
+    coreFraction(iSize) = coreMass/(coreMass + shellMass);
+end
+
+% Interp core fraction for test diameters, linear inside of range
+coreFractionInterp = interp1(nanocrystalSize_m(sizesToUse), coreFraction, ...
+    diametersToCalc, 'linear', -1);
+
+% Extrapolate with nearest outside of range
+toGet = find(coreFractionInterp == -1);
+
+coreFractionInterp(toGet) = interp1(nanocrystalSize_m(sizesToUse), coreFraction, ...
+    diametersToCalc(toGet), 'nearest', 'extrap');
 
 figure;
 
@@ -31,8 +59,15 @@ for iMode = 0:2
     
     if zerosToCalc(iMode+1) >= 0
         for jSize = 1:length(diametersToCalc)
+            % Avg sound velocities based on core fractions
+            avgLongVel = CdSeVelocity_mps(1)*coreFractionInterp(jSize) + ...
+                CdTeVelocity_mps(1)*(1-coreFractionInterp(jSize));
+            
+            avgTransVel = CdSeVelocity_mps(2)*coreFractionInterp(jSize) + ...
+                CdTeVelocity_mps(2)*(1-coreFractionInterp(jSize));
+            
             resonantFreqs(jSize,:) = calcualtesphereresonance(diametersToCalc(jSize)/2, ...
-                'sph', iMode, zerosToCalc(iMode+1), CdSeVelocity_mps(1), CdSeVelocity_mps(2), 5*10^9, 10^6, 0);
+                'sph', iMode, zerosToCalc(iMode+1), avgLongVel, avgTransVel, 5*10^9, 10^6, 0);
         end
         
         for jZero = 1:(zerosToCalc(iMode+1)+1)
