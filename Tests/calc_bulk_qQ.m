@@ -21,8 +21,6 @@ QEstimate = zeros(length(sizesToUse),1);
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
 
-    QEstimate(iSize) = nanocrystalFreqResonance_hz(sizeIndex)/nanocrystalFreqBandwidth_hz(sizeIndex);
-
     coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
     
     totalVolume = 4/3*pi*(nanocrystalSize_m(sizeIndex)/2).^3;
@@ -34,7 +32,17 @@ for iSize = 1:length(sizesToUse)
     
     reducedMass = coreMass*shellMass/(coreMass + shellMass);
     
-    qEstimate(iSize) = sqrt(nanocrystalThetaEx_m2(sizeIndex) * nanocrystalFreqResonance_hz(sizeIndex) * ...
+    
+    QEstimate(iSize) = nanocrystalFreqResonance_hz(sizeIndex)/nanocrystalFreqBandwidth_hz(sizeIndex);
+    
+    
+    resonance_rad = nanocrystalFreqResonance_hz(sizeIndex)*2*pi;
+
+    systemSpring = resonance_rad^2*reducedMass;
+
+    systemDamp = resonance_rad*reducedMass/QEstimate(iSize);
+    
+    qEstimate(iSize) = sqrt(nanocrystalThetaEx_m2(sizeIndex) * resonance_rad * ...
         reducedMass*VACCUM_PERMITIVITY*LIGHT_SPEED./QEstimate(iSize)); 
 end
 
@@ -47,7 +55,7 @@ ylim([0 15]); xlim([5 15]);
 subplot(1,2,2); hold on
 plot(nanocrystalSize_m(sizesToUse)*10^9, qEstimate/(1.602176634*10^-19), 'x-')
 title('Charge (in e)');
-ylim([0 150]); 
+ylim([0 500]); 
 xlim([0 15]);
 
 % Use fit 2nd order polynomial

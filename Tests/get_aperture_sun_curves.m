@@ -26,21 +26,29 @@ avgArea = mean(apertureArea(areaToUse))
 
 apertureRadius = sqrt(avgArea/pi)*1000
 
+%Calc intensity for other sizes
+I_trans_10p4_calc = exp(ExCrossSecCurve_m2{sizesToUse(2)}*-numberSpheres(2)/avgArea) .* I_source_mv;
+
+I_trans_8_calc = exp(ExCrossSecCurve_m2{sizesToUse(1)}*-numberSpheres(1)/avgArea) .* I_source_mv;
 
 
-I_trans_10p4_calc = 10.^(ExCrossSecCurve_m2{sizesToUse(2)}*-numberSpheres(2)/avgArea) .* I_source_mv;
+% Get intensity and exCross for 13 given avg area to test
+I_trans_13_calc = exp(ExCrossSecCurve_m2{sizesToUse(3)}*-numberSpheres(3)/avgArea) .* I_source_mv;
 
-I_trans_8_calc = 10.^(ExCrossSecCurve_m2{sizesToUse(1)}*-numberSpheres(1)/avgArea) .* I_source_mv;
+exCrossSecCurve_13_calc = -avgArea/numberSpheres(3).*...
+        log(I_trans_13_mv./I_source_mv);
 
+    
 
-
-figure; subplot(1,2,1); hold on;
+figure; subplot(1,3,1); hold on;
 
 plot(curveFrequncy/10^9, I_source_mv, 'k')
 
 plot(curveFrequncy/10^9, I_trans_13_mv, 'r')
 
-plot(curveFrequncy(areaToUse)/10^9, I_trans_13_mv(areaToUse), 'rx')
+plot(curveFrequncy/10^9, I_trans_13_calc, 'rx')
+
+plot(curveFrequncy(areaToUse)/10^9, I_trans_13_mv(areaToUse), 'ro')
 
 plot(curveFrequncy/10^9, I_trans_10p4_calc, 'xm')
 
@@ -49,12 +57,27 @@ plot(curveFrequncy/10^9, I_trans_8_calc, 'xb')
 title('Transmission intensity')
 
 
-subplot(1,2,2); hold on;
+
+subplot(1,3,2); hold on;
 
 plot(curveFrequncy/10^9, apertureArea, 'r')
 
-plot(curveFrequncy(areaToUse)/10^9, apertureArea(areaToUse), 'rx')
+plot(curveFrequncy(areaToUse)/10^9, apertureArea(areaToUse), 'ro')
 
 line([curveFrequncy(1) curveFrequncy(end)]/10^9, [avgArea avgArea])
 
 title('Aperture area')
+
+
+
+subplot(1,3,3); hold on;
+
+plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizesToUse(3)}/10^-21, 'r')
+
+plot(curveFrequncy/10^9, exCrossSecCurve_13_calc/10^-21, 'rx')
+
+plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizesToUse(2)}/10^-21, 'xm')
+
+plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizesToUse(1)}/10^-21, 'xb')
+
+title('Extinction cross section')

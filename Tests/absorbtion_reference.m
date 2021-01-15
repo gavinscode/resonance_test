@@ -3,7 +3,7 @@
 % Source intensity
 I_source_mv = [2.92, 2.58, 2.60, 2.33, 1.76, 1.18, 0.69, 0.42, 0.32]; %mV
 
-% Transmitted intensity 13 nm - have curve for 1 size
+% Transmitted intensity 13 nm - only have curve for 6th
 I_trans_13_mv = [2.87, 2.03, 1.72, 1.53, 1.19, 0.83, 0.49, 0.33, 0.25]; %mV
 
 % Frequncies measuresed
