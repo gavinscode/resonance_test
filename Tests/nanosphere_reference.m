@@ -1,15 +1,15 @@
-% First test, s toolLiu ... Sun 2008 CdSe/CdTe type-II nanocrystals
+% First test, Liu ... Sun 2008 CdSe/CdTe type-II nanocrystals
 
 %%% Also get data from Murray and other nanosphere L1 papers
 
 nanocrystalSize_m = [8 8.4 10.1 10.4 11.6 13]*10^-9; 
 
 % Weird order, but correct given aperture calcs
-nanocrystalNumber = [3.6*10^15 NaN NaN 1.4*10^16 NaN 1.4*10^16];
+nanocrystalNumber = [3.6*10^15 NaN NaN 1.4*10^16 NaN 1.6*10^16];
 
 %%% Core variation is indicated in methods paper
     % Assumed values for 8.4 10.1 and 11.6
-nanocrystalCore_m = [4.3 4.3 4.3 4.3 5.4 5.4]*10^-9;
+nanocrystalCore_m = [4.3 NaN NaN 4.3 NaN 5.4]*10^-9;
 
 % Note: 50 is resolution bandwidth/FWHM
     % 10 is spectral resolution, unsure of relation to gaussian
