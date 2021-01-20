@@ -58,13 +58,15 @@ title('Charge (in e)');
 ylim([0 500]); 
 xlim([0 15]);
 
+% Note this is e as function of nanometers...
+
 % Use fit 2nd order polynomial
-opts = fitoptions('poly2', 'Lower', [-Inf 0 0], 'Upper', [Inf Inf 0]);
+opts = fitoptions('poly2', 'Lower', [-Inf 0 0], 'Upper', [Inf 0 0]);
 fittedQuad = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'poly2', opts)
 
 quadH = plot(fittedQuad,'b');
 
-opts = fitoptions('exp1', 'Lower', [1 -Inf], 'Upper', [1 Inf]);
+opts = fitoptions('exp1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
 fittedExp = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'exp1', opts)
 
 expH = plot(fittedExp, 'g');
