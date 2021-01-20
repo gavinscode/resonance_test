@@ -10,7 +10,7 @@ sizesToUse = [1 4 6];
     
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
-frequencyRange_rad = (50:350)*10^9*2*pi;
+frequencyRange_rad = (50:450)*10^9*2*pi;
 
 % Blurring filter from source bandwidth
 for iSize = 1:length(sizesToUse);
@@ -188,9 +188,7 @@ for iSize = 1:length(sizesToUse);
     
     ylabel('Abosorbtion')
     
-    xlim([100 300])
-    
-    
+    xlim([100 400])
     
     % Now plot extinction cross section
     subplot(1,2,2); hold on;
@@ -215,5 +213,5 @@ for iSize = 1:length(sizesToUse);
     
     ylabel('Extinciton')
     
-    xlim([100 300])
+    xlim([100 400])
 end

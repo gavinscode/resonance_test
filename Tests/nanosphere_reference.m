@@ -21,8 +21,16 @@ freqResolution_Ghz = [50 10 10 50 10 50];
 % Using text values for all but 8.4 (typo in text)
 nanocrystalFreqResonance_hz = [210 241 175 200 170 165]*10^9;
 
+nanocrystal2ndFreqResonance_hz = [380  NaN 322 360 271 250]*10^9;
+
+nanocrystal3rdFreqResonance_hz = [NaN NaN NaN NaN 333 370]*10^9;
+
 % Using text values for all but 8.4 (typo in text)
 nanocrystalFreqBandwidth_hz = [31 45.70 34 40 17 40]*10^9; % Note, this is HW
+
+nanocrystal2ndFreqBandwidth_hz = [50 NaN 32 70 15 NaN]*10^9;
+
+nanocrystal3rdFreqBandwidth_hz = [NaN NaN NaN NaN 15 60]*10^9;
 
 % Double as HW provided in text - FW required for getting systemQ
 nanocrystalFreqBandwidth_hz = nanocrystalFreqBandwidth_hz*2;
@@ -71,7 +79,7 @@ CdTeDensity_kgpm3 = 5856;        % kg/m^3
 
 
 % From Calc in get_aperture file
-apertureArea = 2.10*10^-4;
+apertureArea = 2.11*10^-4;
 
 % General constants
 VACCUM_PERMITIVITY = 8.854187817*10^-12; %C^2/(N.M^2)

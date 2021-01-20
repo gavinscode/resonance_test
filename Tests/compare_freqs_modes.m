@@ -45,13 +45,25 @@ figure;
 
 % Plot linear function of diameter
 subplot(1,2,1); hold on;
-plot(nanocrystalSize_m*10^9, nanocrystalFreqResonance_hz/10^9, 'x')
-plot(nanocrystalSize_m(sizesToUse)*10^9, nanocrystalFreqResonance_hz(sizesToUse)/10^9, 'o')
+plot(nanocrystalSize_m*10^9, nanocrystalFreqResonance_hz/10^9, 'xk')
+plot(nanocrystalSize_m(sizesToUse)*10^9, nanocrystalFreqResonance_hz(sizesToUse)/10^9, 'ok')
+
+plot(nanocrystalSize_m*10^9, nanocrystal2ndFreqResonance_hz/10^9, 'xk')
+plot(nanocrystalSize_m(sizesToUse)*10^9, nanocrystal2ndFreqResonance_hz(sizesToUse)/10^9, 'ok')
+
+plot(nanocrystalSize_m*10^9, nanocrystal3rdFreqResonance_hz/10^9, 'xk')
+plot(nanocrystalSize_m(sizesToUse)*10^9, nanocrystal3rdFreqResonance_hz(sizesToUse)/10^9, 'ok')
 
 % Plot recipriocal function diameter
 subplot(1,2,2); hold on;
-plot(1./(nanocrystalSize_m*10^9), nanocrystalFreqResonance_hz/10^9, 'x')
-plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystalFreqResonance_hz(sizesToUse)/10^9, 'o')
+plot(1./(nanocrystalSize_m*10^9), nanocrystalFreqResonance_hz/10^9, 'xk')
+plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystalFreqResonance_hz(sizesToUse)/10^9, 'ok')
+
+plot(1./(nanocrystalSize_m*10^9), nanocrystal2ndFreqResonance_hz/10^9, 'xk')
+plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal2ndFreqResonance_hz(sizesToUse)/10^9, 'ok')
+
+plot(1./(nanocrystalSize_m*10^9), nanocrystal3rdFreqResonance_hz/10^9, 'xk')
+plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal3rdFreqResonance_hz(sizesToUse)/10^9, 'ok')
 
 %For each mode
 for iMode = 0:2
@@ -82,10 +94,10 @@ end
 
 subplot(1,2,1); hold on;
 xlim([6 15])
-ylim([100 300])
+ylim([100 400])
 title('normal diameter')
 
 subplot(1,2,2); hold on;
 xlim([1/15 1/6])
 title('reciprical diameter')
-ylim([100 300])
+ylim([100 400])
