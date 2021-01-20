@@ -12,6 +12,8 @@ sizesToUse = [1 4 6];
 % Expanded range as padding for convolution
 frequencyRange_rad = (50:450)*10^9*2*pi;
 
+
+
 % Blurring filter from source bandwidth
 for iSize = 1:length(sizesToUse);
     sizeIndex = sizesToUse(iSize);
@@ -60,32 +62,9 @@ for iSize = 1:length(sizesToUse);
     qToUse = sqrt(nanocrystalThetaEx_m2(sizeIndex) * resonance_rad * ...
         reducedMass*VACCUM_PERMITIVITY*LIGHT_SPEED/systemQ);  
 
-    bulkAbsorbtion = zeros(length(frequencyRange_rad), 1);
-    
-    bulkExtinctionCrossSection = zeros(length(frequencyRange_rad), 1);
-    
     % Absorbtion and extinction for bulk    
-    for kFreq = 1:length(frequencyRange_rad)
-        % Eqn 7
-        analyticalAmplitude = qToUse./(reducedMass*...
-            sqrt((resonance_rad^2 - frequencyRange_rad(kFreq)^2)^2 + ...
-            (resonance_rad*frequencyRange_rad(kFreq)/systemQ).^2));
-
-        % Eqn 9
-        analyticalPower = resonance_rad * ...
-            frequencyRange_rad(kFreq)^2 * reducedMass * ...
-            analyticalAmplitude^2 / (2*systemQ);
-
-        powerFlux = 0.5*VACCUM_PERMITIVITY*LIGHT_SPEED;
-
-        % Eqn 10
-        bulkExtinctionCrossSection(kFreq) = analyticalPower/powerFlux;
-
-        % Eqn 13 - solution for absorbtion
-        bulkAbsorbtion(kFreq) = (1-exp(-bulkExtinctionCrossSection(kFreq)*...
-            nanocrystalNumber(sizeIndex)/apertureArea));
-
-    end
+    [bulkAbsorbtion, bulkExtinctionCrossSection] = calculatesphereabsorbtion(frequencyRange_rad, resonance_rad, ...
+        reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex), apertureArea);
     
     % Now calculate across diameter distribution
     analyticAbsorbtion = zeros(length(diameterDist), length(frequencyRange_rad));
@@ -125,28 +104,9 @@ for iSize = 1:length(sizesToUse);
         resonance_rad = calcualtesphereresonance(diameterDist(jDiameter)/2, ...
                 'sph', 1, 0, avgLongVel, avgTransVel, 5*10^9, 10^6, 0)*2*pi;
 
-        for kFreq = 1:length(frequencyRange_rad)
-            % Eqn 7
-            analyticalAmplitude = qToUse./(reducedMass*...
-                sqrt((resonance_rad^2 - frequencyRange_rad(kFreq)^2)^2 + ...
-                (resonance_rad*frequencyRange_rad(kFreq)/systemQ).^2));
-
-            % Eqn 9
-            analyticalPower = resonance_rad * ...
-                frequencyRange_rad(kFreq)^2 * reducedMass * ...
-                analyticalAmplitude^2 / (2*systemQ);
-
-            powerFlux = 0.5*VACCUM_PERMITIVITY*LIGHT_SPEED;
-
-            % Eqn 10
-            analyticExtinctionCrossSection(jDiameter, kFreq)  = analyticalPower/powerFlux;
+        [analyticAbsorbtion(jDiameter, :), analyticExtinctionCrossSection(jDiameter, :)] = calculatesphereabsorbtion(frequencyRange_rad, ...
+            resonance_rad, reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter), apertureArea);    
             
-            % Eqn 13 - solution for absorbtion
-            analyticAbsorbtion(jDiameter, kFreq) = (1-exp(-analyticExtinctionCrossSection(jDiameter, kFreq)*...
-                nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter)/apertureArea));
-
-        end
-        
         subplot(1,2,1); hold on;
         plot(frequencyRange_rad/2/pi/10^9, analyticAbsorbtion(jDiameter, :)*100)
         
