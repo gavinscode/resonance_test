@@ -1,4 +1,4 @@
-clear; close all; clc
+clear; clc; %close all;
 
 % Load data
 nanosphere_reference
@@ -9,7 +9,7 @@ diametersToCalc = (6:2:16)*10^-9;
 
 % For 0th, 1st and 2nd modes
     % Set to -1 for no zeros (counted from 0)
-zerosToCalc = [0 1 1];
+zerosToCalc = [1 2 2];
 
 zerosCols = ['r', 'b', 'g'];
 
@@ -29,6 +29,12 @@ for iSize = 1:length(sizesToUse)
     shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
     
     coreFraction(iSize) = coreMass/(coreMass + shellMass);
+    
+%     avgLongVel = CdSeVelocity_mps(1)*coreFraction(iSize) + ...
+%                 CdTeVelocity_mps(1)*(1-coreFraction(iSize))
+%             
+%     avgTransVel = CdSeVelocity_mps(2)*coreFraction(iSize) + ...
+%         CdTeVelocity_mps(2)*(1-coreFraction(iSize))
 end
 
 % Interp core fraction for test diameters, linear inside of range

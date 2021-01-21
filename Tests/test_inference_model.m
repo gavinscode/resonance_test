@@ -1,4 +1,4 @@
-clear; close all; clc
+clear; clc; close all
 
 % Load data
 nanosphere_reference
@@ -18,8 +18,10 @@ for iDist = 1:length(sizesWithDists)
 end
 
 % Start with sizes measured on 50 GHz Bandwidth
-sizesToUse = 1; [1 4 6];    
+sizesToUse = 6; [1 4 6];    
     
+modesToTest = 3;
+
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
 frequencyRange_rad = (50:450)*10^9*2*pi;
@@ -40,16 +42,16 @@ for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
 
     % Get size dist
-    diameterDist = nanocrystalSizeDist{sizeIndex, 1}*10^9;
+    diameterDist = nanocrystalSizeDist{sizeIndex, 1}; %*10^9;
     
     countDist = nanocrystalSizeDist{sizeIndex, 2};
     
     % Add interpolation function
-    countDist = interp1(diameterDist, countDist, ...
-        min(diameterDist):0.5:max(diameterDist), 'linear', 0);
+    countDist = interp1(diameterDist*10^9, countDist, ...
+       min(diameterDist*10^9):0.5:max(diameterDist*10^9), 'linear', 0);
     
     %%% Check this agrees with histogram predictions...
-    diameterDist = (min(diameterDist):0.5:max(diameterDist))/10^9;
+    diameterDist = (min(diameterDist*10^9):0.5:max(diameterDist*10^9))/10^9;
     
     sizeFrequency = countDist/sum(countDist);
     
@@ -95,7 +97,7 @@ for iSize = 1:length(sizesToUse)
         reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex), apertureArea);
     
     % Pre determine fixed parameters for each size
-    resonanceBySize_rad = zeros(length(diameterDist), 1);
+    resonanceBySize_rad = zeros(length(diameterDist), modesToTest);
     
     reducedMassBySize = zeros(length(diameterDist), 1);
     
@@ -126,8 +128,8 @@ for iSize = 1:length(sizesToUse)
             CdTeVelocity_mps(2)*(1-coreFraction);
         
         % Calculate resonance for this size
-        resonanceBySize_rad(jDiameter) = calcualtesphereresonance(diameterDist(jDiameter)/2, ...
-                'sph', 1, 0, avgLongVel, avgTransVel, 5*10^9, 10^6, 0)*2*pi;
+        resonanceBySize_rad(jDiameter, :) = calcualtesphereresonance(diameterDist(jDiameter)/2, ...
+                'sph', 1, modesToTest-1, avgLongVel, avgTransVel, 5*10^9, 10^6, 0)*2*pi;
     end
     
     %%% May be better to make a recursive function for testing more
@@ -186,10 +188,16 @@ for iSize = 1:length(sizesToUse)
                         error('Test param not implemented') 
                 end
                 
-                [analyticAbsorbtion(jDiameter, :), analyticExtinctionCrossSection(jDiameter, :)] = calculatesphereabsorbtion(...
-                    frequencyRange_rad, resonanceBySize_rad(jDiameter), reducedMassBySize(jDiameter), systemQ, qToUse, ...
-                    nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter), apertureArea);    
+                % Calculate for each each mode and sum
+                for kMode = 1:modesToTest
+                
+                    tempAbs = calculatesphereabsorbtion(...
+                        frequencyRange_rad, resonanceBySize_rad(jDiameter, kMode), reducedMassBySize(jDiameter), systemQ, qToUse, ...
+                        nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter), apertureArea);    
 
+                    analyticAbsorbtion(jDiameter, :) = analyticAbsorbtion(jDiameter, :) + tempAbs';
+                end
+                
                 subplot(numRangeTestsB, 2, bRange*2-1); hold on;
                 plot(frequencyRange_rad/2/pi/10^9, analyticAbsorbtion(jDiameter, :)*100)
 

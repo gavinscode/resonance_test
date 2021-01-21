@@ -54,26 +54,21 @@ nanocrystalSizeDist{6,2} = [6 17 49 12 1];
 % Materials - CdSe is core, CdTe is shell
 % From Savoit's app
 % just using this (no CdTe fraction) fit's in middle of experimental points
-% CdSeVelocity_mps = [3700, 1540];  % m/s 
+%CdSeVelocity_mps = [3700, 1540];  % m/s 
 
 % From Sun's paper 
-% just using this (no, CdTe fraction, as Sun did), still towards higher points
-% using both, still tends towards higher points
-%CdSeVelocity_mps = [3570 1720];  % m/s 
+% just using CdSe (no, CdTe fraction, as Sun did), tends towards higher points
+% using both, maintains similar fit
+CdSeDensity_kgpm3 = 5810;        % kg/m^3  
 
-%CdSeDensity_kgpm3 = 5810;        % kg/m^3  
+% CdSeVelocity_mps = [3570 1720];  % m/s 
+% 
+% CdTeVelocity_mps = [3411, 1756]; % m/s
 
-%CdTeVelocity_mps = [3411, 1756]; % m/s
+% Calculated using spherical average of stiffness constants in Adachi 2005
+CdSeVelocity_mps = [3625 1733];  % m/s 
 
-% From Adachi's book
-% using both for [111] tends towards lower points
-% using both for [100] fit's in middle
-% Speeds for 100
-CdSeVelocity_mps = [3430 1980];  % m/s 
-
-CdSeDensity_kgpm3 = 5664;        % kg/m^3
-
-CdTeVelocity_mps = [3020 1860];  % m/s 
+CdTeVelocity_mps = [3280 1623];  % m/s 
 
 CdTeDensity_kgpm3 = 5856;        % kg/m^3 
 
