@@ -54,24 +54,31 @@ nanocrystalSizeDist{6,2} = [6 17 49 12 1];
 % Materials - CdSe is core, CdTe is shell
 % From Savoit's app
 % just using this (no CdTe fraction) fit's in middle of experimental points
-%CdSeVelocity_mps = [3700, 1540];  % m/s 
+%CdSeVelocity_mps = [3700, 1540];  % m/s %ratio: 2.4
 
 % From Sun's paper 
 % just using CdSe (no, CdTe fraction, as Sun did), tends towards higher points
 % using both, maintains similar fit
 CdSeDensity_kgpm3 = 5810;        % kg/m^3  
 
-% CdSeVelocity_mps = [3570 1720];  % m/s 
-% 
-% CdTeVelocity_mps = [3411, 1756]; % m/s
+%CdSeVelocity_mps = [3570 1720];  % m/s %ratio:2.07
+
+%CdTeVelocity_mps = [3411, 1756]; % m/s %ratio: 1.9
 
 % Calculated using spherical average of stiffness constants in Adachi 2005
-CdSeVelocity_mps = [3625 1733];  % m/s 
+CdSeVelocity_mps = [3625 1733];  % m/s %ratio: 2.1
 
-CdTeVelocity_mps = [3280 1623];  % m/s 
+CdTeVelocity_mps = [3280 1623];  % m/s %ratio: 2.0
+
+% W limits from Murray site - for testing
+% Ratio < 2 tends to shift right, ratio > 2 tends to shift left
+%CdSeVelocity_mps = [3501 1493]; % low low %ratio: 2.3 %shift left
+%CdSeVelocity_mps = [3501 1825]; % low high %ratio: 1.9 % shift right
+%CdSeVelocity_mps = [3750 1493]; % high low %ratio: 2.51 % shift left
+%CdSeVelocity_mps = [3750 1825]; % high high %ratio: 2.05 % shift right
+%CdTeVelocity_mps = CdSeVelocity_mps;
 
 CdTeDensity_kgpm3 = 5856;        % kg/m^3 
-
 
 % From Calc in get_aperture file
 apertureArea = 2.11*10^-4;

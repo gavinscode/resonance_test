@@ -1,4 +1,4 @@
-clear; clc; close all
+clear; clc; %close all
 
 % Load data
 nanosphere_reference
@@ -6,12 +6,14 @@ nanosphere_reference
 absorbtion_reference
 
 % Start with sizes measured on 50 GHz Bandwidth
-sizesToUse = 1; [1 4 6];    
+sizesToUse = [1 4 6];    
     
 % Actual max mode number is -1
 modesToTest = 1;
 
 sizeSteps = 0.5/10^9; % in m
+
+scaleCoreSize = 0;
 
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
@@ -23,12 +25,16 @@ frequencyRange_rad = (50:450)*10^9*2*pi;
 
 testParam = {'systemQ', 'qToUse'};
 
-testRange = {2:2:10, 0.8:0.2:1.6};
+testRange = {2:6:20, 0.8:0.2:1.6};
 
-testRange = {[2 20], [0.8 1.6]};
+%testRange = {[2 20], [0.8 1.6]};
 
 numParamTests = length(testParam);
-    
+
+% Refactored plotting
+% Base size x param A - lines param B. For each metric (e.g. extinction) 
+figure;
+
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
 
@@ -89,11 +95,15 @@ for iSize = 1:length(sizesToUse)
     
     for jDiameter = 1:length(diameterDist)
 
-        % Scale core diameter given distribution
-        %%% Note, assumse core directly scales with total diamter, may not be true
-        coreDiameterScaled_m = nanocrystalCore_m(sizeIndex)*diameterDist(jDiameter)/ ...
-            nanocrystalSize_m(sizeIndex);
-
+        if scaleCoreSize
+            % Scale core diameter given distribution
+            %%% Note, assumse core directly scales with total diamter, may not be true
+            coreDiameterScaled_m = nanocrystalCore_m(sizeIndex)*diameterDist(jDiameter)/ ...
+                nanocrystalSize_m(sizeIndex);
+        else
+            coreDiameterScaled_m = nanocrystalCore_m(sizeIndex);
+        end
+        
         coreVolume = 4/3*pi*(coreDiameterScaled_m/2).^3;
 
         totalVolume = 4/3*pi*(diameterDist(jDiameter)/2).^3;
@@ -114,6 +124,9 @@ for iSize = 1:length(sizesToUse)
             CdTeVelocity_mps(2)*(1-coreFraction);
         
         % Calculate resonance for this size
+        
+        %%% Set up linear interp across size range based on recipriocal?
+        % This is probably slowest fn.
         resonanceBySize_rad(jDiameter, :) = calcualtesphereresonance(diameterDist(jDiameter)/2, ...
                 'sph', 1, modesToTest-1, avgLongVel, avgTransVel, 5*10^9, 10^6, 0)*2*pi;
     end
@@ -125,16 +138,36 @@ for iSize = 1:length(sizesToUse)
     paramRangeA = testRange{1};
 
     numRangeTestsA = length(paramRangeA);
-        
+    
     for aRange = 1:numRangeTestsA
+        
+        % Set up plotting
+        subplot(length(sizesToUse), numRangeTestsA, (iSize - 1)*numRangeTestsA + aRange); hold on;
 
-        figure;
+        % Reference cross section
+        plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizeIndex}/10^-21, 'm-x')
+
+        % From bulk
+        plot(frequencyRange_rad/2/pi/10^9, bulkExtinctionCrossSection/10^-21, 'k:')
+
+        ylabel('Extinciton')
+
+        xlim([100 400])
+        
+        if aRange == 1
+            title(sprintf('Base size %.1f Testing %s %.1f', nanocrystalSize_m(sizeIndex)*10^9, ...
+                testParam{1}, paramRangeA(aRange)))
+        else
+            title(sprintf('Testing %s %.1f', testParam{1}, paramRangeA(aRange)))
+        end
         
         % Then do parameter B
         paramRangeB = testRange{2};
 
         numRangeTestsB = length(paramRangeB);
 
+        colsB = jet(numRangeTestsB);
+        
         for bRange = 1:numRangeTestsB
             % Now calculate across diameter distribution
             analyticAbsorbtion = zeros(length(diameterDist), length(frequencyRange_rad));
@@ -184,28 +217,30 @@ for iSize = 1:length(sizesToUse)
                     analyticAbsorbtion(jDiameter, :) = analyticAbsorbtion(jDiameter, :) + tempAbs';
                 end
                 
-                subplot(numRangeTestsB, 2, bRange*2-1); hold on;
-                plot(frequencyRange_rad/2/pi/10^9, analyticAbsorbtion(jDiameter, :)*100)
+%                 subplot(numRangeTestsB, 2, bRange*2-1); hold on;
+%                 plot(frequencyRange_rad/2/pi/10^9, analyticAbsorbtion(jDiameter, :)*100)
 
                 %subplot(numRangeTestsB, 2, bRange*2); hold on;
                 %plot(frequencyRange_rad/2/pi/10^9, analyticExtinctionCrossSection(jDiameter, :)/10^-21)
             end
 
+            %%% Removed absorbtion plotting when refactoring
+            
             % Plot combined absorbtion
-            subplot(numRangeTestsB,2,bRange*2-1); hold on;
+%             subplot(numRangeTestsB,2,bRange*2-1); hold on;
             totalAbsorbtion = sum(analyticAbsorbtion);
 
-            plot(frequencyRange_rad/2/pi/10^9, totalAbsorbtion*100, 'r')
+%             plot(frequencyRange_rad/2/pi/10^9, totalAbsorbtion*100, 'r')
 
             % From bulk
-            plot(frequencyRange_rad/2/pi/10^9, bulkAbsorbtion*100, 'g')
+%             plot(frequencyRange_rad/2/pi/10^9, bulkAbsorbtion*100, 'g')
 
             % Add measured absorbtion curve
             if sizeIndex == 6
                 % Use proved intensity for 13 nm
                 directAbs = 1 - I_trans_13_mv./I_source_mv;
 
-                plot(curveFrequncy/10^9, directAbs*100, 'b-x')
+%                 plot(curveFrequncy/10^9, directAbs*100, 'b-x')
             else
                % Otherise calculate intensity 
                intensityCalc = exp(ExCrossSecCurve_m2{sizeIndex}*-nanocrystalNumber(sizeIndex)/apertureArea) .* ...
@@ -213,49 +248,34 @@ for iSize = 1:length(sizesToUse)
 
                absCalc = 1 - intensityCalc./I_source_mv;
 
-               plot(curveFrequncy/10^9, absCalc*100, 'b-x')
+%                plot(curveFrequncy/10^9, absCalc*100, 'b-x')
             end
 
             % Calc and plot blurred absorbtion
             blurredAbsorbtion = conv(totalAbsorbtion, sourceSpectra, 'same');
 
-            plot(frequencyRange_rad/2/pi/10^9, blurredAbsorbtion*100, 'm')
+%             plot(frequencyRange_rad/2/pi/10^9, blurredAbsorbtion*100, 'm')
+% 
+%             title(sprintf('Testing %s %.1f', testParam{2}, paramRangeB(bRange)))
+% 
+%             ylabel('Abosorbtion')
+% 
+%             xlim([100 400])
 
-            title(sprintf('Testing %s %.1f', testParam{2}, paramRangeB(bRange)))
-
-            ylabel('Abosorbtion')
-
-            xlim([100 400])
-
+            % Refactored plotting
+            
             % Now plot extinction cross section
-            subplot(numRangeTestsB,2,bRange*2); hold on;
-
-            % Reference cross section
-            plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizeIndex}/10^-21, 'b-x')
-
-            % From bulk
-            plot(frequencyRange_rad/2/pi/10^9, bulkExtinctionCrossSection/10^-21, 'g')
-
             % Cross section from combined absorbtion curve
             totalExtinctionCrossSection = -apertureArea/nanocrystalNumber(sizeIndex).*...
                 log(1-totalAbsorbtion);
 
-            plot(frequencyRange_rad/2/pi/10^9, totalExtinctionCrossSection/10^-21, 'r')
-
+            plot(frequencyRange_rad/2/pi/10^9, totalExtinctionCrossSection/10^-21, 'color', colsB(bRange, :))
+            
             % Calculate and plot extinction from blurred absorbtion curve;
-            blurredExtinction = -apertureArea/nanocrystalNumber(sizeIndex).*...
-                log(1-blurredAbsorbtion);
-
-            plot(frequencyRange_rad/2/pi/10^9, blurredExtinction/10^-21, 'm')
-
-            ylabel('Extinciton')
-
-            xlim([100 400])
+%             blurredExtinction = -apertureArea/nanocrystalNumber(sizeIndex).*...
+%                 log(1-blurredAbsorbtion);
+% 
+%             plot(frequencyRange_rad/2/pi/10^9, blurredExtinction/10^-21, 'm') 
         end
-    
-        subplot(numRangeTestsB,2,2);
-
-        title(sprintf('Base size %.1f Testing %s %.1f', nanocrystalSize_m(sizeIndex)*10^9, ...
-            testParam{1}, paramRangeA(aRange)))
     end
 end
