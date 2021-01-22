@@ -13,7 +13,9 @@ modesToTest = 1;
 
 sizeSteps = 0.5/10^9; % in m
 
-scaleCoreSize = 0;
+scaleCoreSize = 1; % Fixing core size seems to have quite a large effect on lowest peak
+
+blurAbsorbtion = 1;
 
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
@@ -110,11 +112,17 @@ for iSize = 1:length(sizesToUse)
 
         coreMass = coreVolume*CdSeDensity_kgpm3;
 
-        % Take difference in volume
-        shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
-
+        % Take difference in volume for shell mass
+        if totalVolume - coreVolume > 0
+            shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
+        else
+           % If core larger than shell, don't let it go negative
+           shellMass = 0;
+        end
+        
+        % This will go to zero is shell has zero mass - no absorbtion occurs
         reducedMassBySize(jDiameter) = coreMass*shellMass/(coreMass + shellMass);
-
+        
         coreFraction = coreMass/(coreMass + shellMass);
 
         avgLongVel = CdSeVelocity_mps(1)*coreFraction + ...
@@ -209,12 +217,13 @@ for iSize = 1:length(sizesToUse)
                 
                 % Calculate for each each mode and sum
                 for kMode = 1:modesToTest
-                
-                    tempAbs = calculatesphereabsorbtion(...
-                        frequencyRange_rad, resonanceBySize_rad(jDiameter, kMode), reducedMassBySize(jDiameter), systemQ, qToUse, ...
-                        nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter), apertureArea);    
+                    if reducedMassBySize(jDiameter) > 0
+                        tempAbs = calculatesphereabsorbtion(...
+                            frequencyRange_rad, resonanceBySize_rad(jDiameter, kMode), reducedMassBySize(jDiameter), systemQ, qToUse, ...
+                            nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter), apertureArea);    
 
-                    analyticAbsorbtion(jDiameter, :) = analyticAbsorbtion(jDiameter, :) + tempAbs';
+                        analyticAbsorbtion(jDiameter, :) = analyticAbsorbtion(jDiameter, :) + tempAbs';
+                    end
                 end
                 
 %                 subplot(numRangeTestsB, 2, bRange*2-1); hold on;
@@ -265,17 +274,20 @@ for iSize = 1:length(sizesToUse)
             % Refactored plotting
             
             % Now plot extinction cross section
-            % Cross section from combined absorbtion curve
-            totalExtinctionCrossSection = -apertureArea/nanocrystalNumber(sizeIndex).*...
-                log(1-totalAbsorbtion);
-
-            plot(frequencyRange_rad/2/pi/10^9, totalExtinctionCrossSection/10^-21, 'color', colsB(bRange, :))
             
-            % Calculate and plot extinction from blurred absorbtion curve;
-%             blurredExtinction = -apertureArea/nanocrystalNumber(sizeIndex).*...
-%                 log(1-blurredAbsorbtion);
-% 
-%             plot(frequencyRange_rad/2/pi/10^9, blurredExtinction/10^-21, 'm') 
+            if blurAbsorbtion
+                %Calculate and plot extinction from blurred absorbtion curve;
+                blurredExtinction = -apertureArea/nanocrystalNumber(sizeIndex).*...
+                    log(1-blurredAbsorbtion);
+
+                plot(frequencyRange_rad/2/pi/10^9, blurredExtinction/10^-21, 'color', colsB(bRange, :)) 
+            else
+                % Cross section from combined absorbtion curve
+                totalExtinctionCrossSection = -apertureArea/nanocrystalNumber(sizeIndex).*...
+                    log(1-totalAbsorbtion);
+
+                plot(frequencyRange_rad/2/pi/10^9, totalExtinctionCrossSection/10^-21, 'color', colsB(bRange, :))
+            end
         end
     end
 end

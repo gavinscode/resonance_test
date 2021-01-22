@@ -16,6 +16,9 @@ zerosCols = ['r', 'b', 'g'];
 % Get core to shell mass fraction
 coreFraction = zeros(length(sizesToUse),1);
 
+%%% Ratio here might not be appropriate...
+    % See scaling in main
+
 for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
     
