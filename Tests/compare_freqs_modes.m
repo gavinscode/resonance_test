@@ -9,7 +9,7 @@ diametersToCalc = (6:2:16)*10^-9;
 
 % For 0th, 1st and 2nd modes
     % Set to -1 for no zeros (counted from 0)
-zerosToCalc = [1 2 2];
+zerosToCalc = [1 3 3];
 
 zerosCols = ['r', 'b', 'g'];
 

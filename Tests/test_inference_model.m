@@ -5,22 +5,13 @@ nanosphere_reference
 
 absorbtion_reference
 
-sizesWithDists = [1 4 6];    
-
-figure; hold on
-
-for iDist = 1:length(sizesWithDists)
-    diameterDist = nanocrystalSizeDist{sizesWithDists(iDist), 1};
-    
-    countDist = nanocrystalSizeDist{sizesWithDists(iDist), 2};
-    
-    plot(diameterDist*10^9, countDist/sum(countDist));
-end
-
 % Start with sizes measured on 50 GHz Bandwidth
-sizesToUse = 6; [1 4 6];    
+sizesToUse = 1; [1 4 6];    
     
-modesToTest = 3;
+% Actual max mode number is -1
+modesToTest = 1;
+
+sizeSteps = 0.5/10^9; % in m
 
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
@@ -42,16 +33,11 @@ for iSize = 1:length(sizesToUse)
     sizeIndex = sizesToUse(iSize);
 
     % Get size dist
-    diameterDist = nanocrystalSizeDist{sizeIndex, 1}; %*10^9;
+    diameterDist = nanocrystalSizeDist{sizeIndex, 1};
     
     countDist = nanocrystalSizeDist{sizeIndex, 2};
     
-    % Add interpolation function
-    countDist = interp1(diameterDist*10^9, countDist, ...
-       min(diameterDist*10^9):0.5:max(diameterDist*10^9), 'linear', 0);
-    
-    %%% Check this agrees with histogram predictions...
-    diameterDist = (min(diameterDist*10^9):0.5:max(diameterDist*10^9))/10^9;
+    [countDist, diameterDist] = interpolatescaleddistribution(countDist, diameterDist, sizeSteps);
     
     sizeFrequency = countDist/sum(countDist);
     
