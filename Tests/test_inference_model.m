@@ -47,6 +47,9 @@ for iSize = 1:length(sizesToUse)
     
     [countDist, diameterDist] = interpolatescaleddistribution(countDist, diameterDist, sizeSteps);
     
+    coreDist = nanocrystalCore_m(sizeIndex).*diameterDist(:)/ ...
+                nanocrystalSize_m(sizeIndex);  
+            
     sizeFrequency = countDist/sum(countDist);
     
     % Create blurring function from source
@@ -99,9 +102,16 @@ for iSize = 1:length(sizesToUse)
 
         if scaleCoreSize
             % Scale core diameter given distribution
-            %%% Note, assumse core directly scales with total diamter, may not be true
+            
+            %%% Assumes core scales as function of shell diameter, 
+                % probably not true as each shell will have full range of shell widths
+            % Update to full range of core diameters for each shell size
+            
             coreDiameterScaled_m = nanocrystalCore_m(sizeIndex)*diameterDist(jDiameter)/ ...
                 nanocrystalSize_m(sizeIndex);
+            
+            %%% This does actually give same CV for core as shell distribution 
+                % not expected...
         else
             coreDiameterScaled_m = nanocrystalCore_m(sizeIndex);
         end
@@ -140,7 +150,7 @@ for iSize = 1:length(sizesToUse)
     end
     
     %%% May be better to make a recursive function for testing more
-    %%% parameters, for now, just fix nested loops
+    %%% parameters, for now, just fix nested  loops
     
     % Do parameter A first
     paramRangeA = testRange{1};

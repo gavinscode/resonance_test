@@ -17,11 +17,17 @@ for iDist = 1:length(sizesWithDists)
     
     countDist = nanocrystalSizeDist{sizesWithDists(iDist), 2};
     
+    m = wmean(diameterDist, countDist);
+    
+    s = std(diameterDist, countDist);
+    
+    % Weird, histograms match exactly but mean and SD slighly off...
+    [m*10^9 s*10^9 s/m]
+    
     subplot(1,3,1); hold on
     plot(diameterDist*10^9, countDist, 'o-');
     subplot(1,3,2); hold on
     plot(diameterDist*10^9, countDist/sum(countDist), 'o-');
-    
     
     % Get edges of bins (between centers)
     binWidths = diff(diameterDist);
@@ -68,6 +74,12 @@ for iDist = 1:length(sizesWithDists)
     
     subplot(1,3,3)
     plot(interpDiameters*10^9, interpCounts, '*-');
+    
+    m = wmean(interpDiameters, interpCounts);
+    
+    s = std(interpDiameters, interpCounts);
+    
+    %[m*10^9 s*10^9 s/m]
     
      % Retake count dist using original bins
     interpCountDist = zeros(length(countDist), 1);
