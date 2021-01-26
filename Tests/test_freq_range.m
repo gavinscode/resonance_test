@@ -145,117 +145,81 @@ for iSize = 1:length(sizesToUse)
     end
 end
 
-% Ideal low freq range from maps
-% For 8, 10.4 and 13 nm spheres (1 4 6)
-peakRange = [150 250; 150 250; 125 225];
-
-peakRange(:,:,2) = [350 400; 200 350; 175 275];
-
-peakRange(:,:,3) = [NaN NaN; 300 450; 325 400];
-
-% Make map of test values
+% Make map of curve slopes
+%%% Note slopes are from reciprical of radius
 % Note, this is for bulk sphere, no core mass averaging
 
-testLong = 3000:200:4000;
+testLong = 3200:100:4000;
 
-testTrans = 1000:200:2000;
+testTrans = 1200:100:2000;
 
+% Get resonant freq slop range of speed combinations
+slopeMap = zeros(length(testLong), length(testTrans), modesToTest);
+
+for jLong = 1:length(testLong)
+
+    for kTrans = 1:length(testTrans)
+
+        % Test two sizes to get slope (sizes aren't really important)
+        highFreqs = calcualtesphereresonance(nanocrystalSize_m(sizesToUse(1))/2, ...
+            'sph', 1, modesToTest-1, testLong(jLong), testTrans(kTrans), 5*10^9, 10^6, 0)*2*pi;
+        
+        lowFreqs = calcualtesphereresonance(nanocrystalSize_m(sizesToUse(end))/2, ...
+            'sph', 1, modesToTest-1, testLong(jLong), testTrans(kTrans), 5*10^9, 10^6, 0)*2*pi;
+        
+        % Calc slope
+        xTravel = 1/(nanocrystalSize_m(sizesToUse(1))/2) - 1/(nanocrystalSize_m(sizesToUse(end))/2);
+        
+        yTavel = highFreqs - lowFreqs;
+        
+        slopeMap(jLong, kTrans, :) = yTavel/xTravel;
+    end
+end  
+
+% slopes = calculateSlopeMap(testLong, testTrans, modesToTest, nanocrystalSize_m(sizesToUse(end)), nanocrystalSize_m(sizesToUse(1)));
+% 
+% sum(slopeMap(:) - slopes(:))
+
+%%
 figure;
 
-overLapMap = zeros(length(testLong), length(testTrans));
-
-for iSize = 1:length(sizesToUse)
-    sizeIndex = sizesToUse(iSize);
-
-    % Get size dist
-    diameterDist = nanocrystalSizeDist{sizeIndex, 1};
+for iMode = 1:modesToTest
+    subplot(2,modesToTest,iMode)
     
-    countDist = nanocrystalSizeDist{sizeIndex, 2};
+    imshow(slopeMap(:,:,iMode)/max(slopeMap(:)))
     
-    % Don't interpolate for now
-    %[countDist, diameterDist] = interpolatescaleddistribution(countDist, diameterDist, sizeSteps);
+    axis on
+    set(gca, 'YTickLabel', testTrans, 'YTick', 1:length(testTrans), ...
+        'XTickLabel', testLong, 'XTick', 1:length(testLong))
     
-    % Just use smallest, most common, and largest in dist
-    [~, minD] = min(diameterDist);
+    subplot(2,modesToTest,iMode+modesToTest); hold on
     
-    [~, maxD] = max(diameterDist);
+    testSizes = (5:15)/10^9;
     
-    [~, modeD] = max(countDist);
-    
-    %Leave out min d, it's never in the range
-    diameterDist = mean(diameterDist([modeD maxD]));
-    
-%     countDist = countDist([modeD]);
-%     
-%     areaDist = 4*pi*(diameterDist/2).^2;
-%     
-%     volumeDist = 4/3*pi*(diameterDist/2).^3;
-%     
-%     weightDist = countDist.*volumeDist;
-%     
-%     weightDist = weightDist / sum(weightDist);
-    
-    %%% Just have test first mode
-    
-    %for aDiameter = 1:length(diameterDist)
-    
-        % Get resonant freq across range of speed combinations for each size
-        resultsMap = zeros(length(testLong), length(testTrans), modesToTest);
+    for jLong = 1:length(testLong)
 
-        for jLong = 1:length(testLong)
-
-            for kTrans = 1:length(testTrans)
-
-                resultsMap(jLong, kTrans,:) = calcualtesphereresonance(diameterDist/2, ...
-                    'sph', 1, modesToTest-1, testLong(jLong), testTrans(kTrans), 5*10^9, 10^6, 0)*2*pi;
-            end
-        end  
-
-        for jMode = 1:modesToTest
-            subplot(modesToTest, length(sizesToUse), (jMode-1)*length(sizesToUse)+iSize); 
-
-            resultsMap_ghz = resultsMap(:,:,jMode)/2/pi/10^9;
-
-            resultsMapScaled = (resultsMap_ghz-100)/400;
-
-            imshow(resultsMapScaled)
-
-            hold on
-
-            title(sprintf('Base size %.1f', nanocrystalSize_m(sizeIndex)*10^9));
-
-            % label points in range
-            inds = find(resultsMap_ghz > peakRange(iSize,1,jMode) & resultsMap_ghz < peakRange(iSize,2,jMode));
-
-            %overLapMap(inds) = overLapMap(inds) + weightDist(aDiameter);
-
-            [pointX, pointY] = ind2sub(size(resultsMap), inds);
-
-            plot(pointY, pointX, 'rx');
-
-            axis on
-            set(gca, 'XTickLabel', testLong(1:2:end), 'XTick', 1:2:length(testLong))
-            set(gca, 'YTickLabel', testTrans(1:2:end), 'YTick', 1:2:length(testTrans))
+        for kTrans = 1:length(testTrans)
+            freqs = 1./(testSizes/2) * slopeMap(jLong, kTrans, iMode);
+            
+            plot(1./(testSizes*10^9), freqs/2/pi/10^9)
         end
+    end
+    
+    switch iMode
+        case 1
+            plot(1./(nanocrystalSize_m*10^9), nanocrystalFreqResonance_hz/10^9, 'xk')
+            plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystalFreqResonance_hz(sizesToUse)/10^9, 'ok')
 
-    %end
+        case 2
+            plot(1./(nanocrystalSize_m*10^9), nanocrystal2ndFreqResonance_hz/10^9, 'xk')
+            plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal2ndFreqResonance_hz(sizesToUse)/10^9, 'ok')
+
+        case 3
+            plot(1./(nanocrystalSize_m*10^9), nanocrystal3rdFreqResonance_hz/10^9, 'xk')
+            plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal3rdFreqResonance_hz(sizesToUse)/10^9, 'ok')
+    end
+    
+    xlim([1/15 1/6])
+    title('reciprical diameter')
+    ylim([100 400])
 end
-
-colorH = colorbar;
-
-set(colorH, 'XTick', 0:0.25:1, 'XTickLabel', 100:100:400)
-
-% Plot overlapping points.
-% inds = find(overLapMap == 3);
-% 
-% [pointX, pointY] = ind2sub(size(resultsMap), inds);
-% 
-% for iSize = 1:length(sizesToUse)
-%     subplot(1, length(sizesToUse), iSize); 
-% 
-%     plot(pointY, pointX, 'go');
-%     
-%     
-% end
-
-%figure; imshow(overLapMap/6)

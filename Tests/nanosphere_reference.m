@@ -69,9 +69,9 @@ CdSeDensity_kgpm3 = 5810;        % kg/m^3
 %CdTeVelocity_mps = [3411, 1756]; % m/s %ratio: 1.9
 
 % Calculated using spherical average of stiffness constants in Adachi 2005
-% CdSeVelocity_mps = [3625 1733];  % m/s %ratio: 2.1
-% 
-% CdTeVelocity_mps = [3280 1623];  % m/s %ratio: 2.0
+CdSeVelocity_mps = [3625 1733];  % m/s %ratio: 2.1
+
+CdTeVelocity_mps = [3280 1623];  % m/s %ratio: 2.0
 
 % W limits from Murray site - for testing
 % Ratio < 2 tends to shift right, ratio > 2 tends to shift left
@@ -82,13 +82,6 @@ CdSeDensity_kgpm3 = 5810;        % kg/m^3
 %CdTeVelocity_mps = CdSeVelocity_mps;
 
 CdTeDensity_kgpm3 = 5856;        % kg/m^3 
-
-% Misc. testing
-CdSeVelocity_mps = [3000 1200 ];
-
-CdTeVelocity_mps = CdSeVelocity_mps;
-
-%CdTeVelocity_mps = [3600 1400 ];
 
 % From Calc in get_aperture file
 apertureArea = 2.11*10^-4;
