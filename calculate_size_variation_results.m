@@ -203,6 +203,8 @@ for iQVal = 1:length(QValuesToTest)
 %         plot(testFrequncies_hz/10^9, permute(analyticalStress(iQVal, jDiam, :)/1000, [3 2 1]), 'color', cols(jDiam,:));
    end
    
+   error('Cant sum absorbtion, need to change to multiply residual')
+   
    % Plot weighted sum 
    subplot(5,3,(iQVal-1)*3+2); hold on
    temp = permute(analyticalAbsorbtion(iQVal, :, :)*100, [2 3 1]);

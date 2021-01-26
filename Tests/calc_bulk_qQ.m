@@ -146,7 +146,7 @@ subplot(3,2,2); hold on
 plot(nanocrystalSize_m(sizesToUse)*10^9, qEstimate/(1.602176634*10^-19), 'bx-')
 plot(nanocrystalSize_m(sizeWithDist)*10^9, qEstimate(sizeWithDist)/(1.602176634*10^-19), 'bo')
 plot(avgSphereRadius*10^9, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
-title('Charge (in e)');
+title('Charge (in e) - not fits are on blue');
 ylim([0 500]); 
 xlim([0 15]);
 
@@ -155,8 +155,12 @@ xlim([0 15]);
 % Use fit 2nd order polynomial
 warning('Note - line only uses sizes with distributions')
 opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
-fittedLine = fit([avgSphereRadius]*10^9, [qEstimateVolDist]/(1.602176634*10^-19), 'poly1', opts)
+fittedLine = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
 lineH = plot(fittedLine,'k');
+
+opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+fittedLine = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
+lineHFree = plot(fittedLine,'k:');
 
 opts = fitoptions('poly2', 'Lower', [-Inf 0 0], 'Upper', [Inf 0 0]);
 fittedQuad = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'poly2', opts)
@@ -182,9 +186,12 @@ ylim([0 500]);
 xlim([0 600]);
 
 opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
-fittedLine = fit([avgSphereArea]*10^18, [qEstimateVolDist]/(1.602176634*10^-19), 'poly1', opts)
+fittedLine = fit([sphereArea']*10^18, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
 lineH = plot(fittedLine,'k');
 
+opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+fittedLine = fit([sphereArea']*10^18, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
+lineHFree = plot(fittedLine,'k:');
 
 subplot(3,2,6); hold on
 plot(sphereVolume*10^27, qEstimate/(1.602176634*10^-19), 'bx-')
@@ -196,5 +203,9 @@ ylim([0 500]);
 xlim([0 1500]);
 
 opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
-fittedLine = fit([avgSphereVolume]*10^27, [qEstimateVolDist]/(1.602176634*10^-19), 'poly1', opts)
+fittedLine = fit([sphereVolume']*10^27, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
 lineH = plot(fittedLine,'k');
+
+opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+fittedLine = fit([sphereVolume']*10^27, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
+lineHFree = plot(fittedLine,'k:');

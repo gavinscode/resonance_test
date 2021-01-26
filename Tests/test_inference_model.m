@@ -9,7 +9,7 @@ absorbtion_reference
 sizesToUse = [1 4 6];    
     
 % Actual max mode number is -1
-modesToTest = 1;
+modesToTest = 3;
 
 sizeSteps = 0.5/10^9; % in m
 
@@ -19,22 +19,45 @@ blurAbsorbtion = 1;
 
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
-frequencyRange_rad = (50:450)*10^9*2*pi;
+frequencyRange_rad = (25:475)*10^9*2*pi;
 
-% testParam = {'qToUse'};
-% 
-% testRange = {1:0.2:2};
+%%% Adapted to test on slope range
+vLRange = 3200:100:4000;
+vTRange = 1200:100:2000;
+
+slopeMap = calculateSlopeMap(vTRange, vTRange, modesToTest, 15/10^9, 5/10^9);
+
+% For error fitting
+topFraciton = 0.5;
+
+comparisonFreqInds = zeros(length(curveFrequncy),1);
+
+for iFreq = 1:length(curveFrequncy)
+    comparisonFreqInds(iFreq) = find(frequencyRange_rad == curveFrequncy(iFreq)*2*pi);
+end
 
 testParam = {'systemQ', 'qToUse'};
 
-testRange = {2:6:20, 0.8:0.2:1.6};
+% For q as quadratic of diameter
+% testRange = {2:6:20, 0.8:0.2:1.6};
 
-%testRange = {[2 20], [0.8 1.6]};
+%%% Add flag to switch fns in future
+
+% For q as fn of volume
+testRange = {3:3:15, 0.15:0.05:0.35};
 
 numParamTests = length(testParam);
 
+% Store errors across parameter ranges
+errorMapAcrossSize = zeros(numel(slopeMap(:,:,1)), length(testRange{1}), length(testRange{2}));
+
+extincionCurveBySize = cell(length(sizesToUse), length(testRange{1}), length(testRange{2}));
+
 % Refactored plotting
 % Base size x param A - lines param B. For each metric (e.g. extinction) 
+
+colsB = jet(length(testRange{2}));
+
 figure;
 
 for iSize = 1:length(sizesToUse)
@@ -98,6 +121,10 @@ for iSize = 1:length(sizesToUse)
     
     reducedMassBySize = zeros(length(diameterDist), 1);
     
+    sphereAreaBySize = 4*pi*(diameterDist/2).^2;
+    
+    sphereVolumeBySize = 4/3*pi*(diameterDist/2).^3;
+      
     for jDiameter = 1:length(diameterDist)
 
         if scaleCoreSize
@@ -133,20 +160,21 @@ for iSize = 1:length(sizesToUse)
         % This will go to zero is shell has zero mass - no absorbtion occurs
         reducedMassBySize(jDiameter) = coreMass*shellMass/(coreMass + shellMass);
         
-        coreFraction = coreMass/(coreMass + shellMass);
-
-        avgLongVel = CdSeVelocity_mps(1)*coreFraction + ...
-                    CdTeVelocity_mps(1)*(1-coreFraction);
-
-        avgTransVel = CdSeVelocity_mps(2)*coreFraction + ...
-            CdTeVelocity_mps(2)*(1-coreFraction);
-        
-        % Calculate resonance for this size
-        
-        %%% Set up linear interp across size range based on recipriocal?
-        % This is probably slowest fn.
-        resonanceBySize_rad(jDiameter, :) = calcualtesphereresonance(diameterDist(jDiameter)/2, ...
-                'sph', 1, modesToTest-1, avgLongVel, avgTransVel, 5*10^9, 10^6, 0)*2*pi;
+        % Now using slope map
+%         coreFraction = coreMass/(coreMass + shellMass);
+% 
+%         avgLongVel = CdSeVelocity_mps(1)*coreFraction + ...
+%                     CdTeVelocity_mps(1)*(1-coreFraction);
+% 
+%         avgTransVel = CdSeVelocity_mps(2)*coreFraction + ...
+%             CdTeVelocity_mps(2)*(1-coreFraction);
+% 
+%         % Calculate resonance for this size
+%         
+%         %%% Set up linear interp across size range based on recipriocal?
+%         % This is probably slowest fn.
+%         resonanceBySize_rad(jDiameter, :) = calcualtesphereresonance(diameterDist(jDiameter)/2, ...
+%                 'sph', 1, modesToTest-1, avgLongVel, avgTransVel, 5*10^9, 10^6, 0)*2*pi;
     end
     
     %%% May be better to make a recursive function for testing more
@@ -157,20 +185,22 @@ for iSize = 1:length(sizesToUse)
 
     numRangeTestsA = length(paramRangeA);
     
+    measuredExtinctionCurve = ExCrossSecCurve_m2{sizeIndex};
+    
     for aRange = 1:numRangeTestsA
         
         % Set up plotting
         subplot(length(sizesToUse), numRangeTestsA, (iSize - 1)*numRangeTestsA + aRange); hold on;
 
         % Reference cross section
-        plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizeIndex}/10^-21, 'm-x')
+        plot(curveFrequncy/10^9, measuredExtinctionCurve/10^-21, 'm-x')
 
         % From bulk
         plot(frequencyRange_rad/2/pi/10^9, bulkExtinctionCrossSection/10^-21, 'k:')
 
         ylabel('Extinciton')
 
-        xlim([100 400])
+        xlim([25 475])
         
         if aRange == 1
             title(sprintf('Base size %.1f Testing %s %.1f', nanocrystalSize_m(sizeIndex)*10^9, ...
@@ -178,6 +208,26 @@ for iSize = 1:length(sizesToUse)
         else
             title(sprintf('Testing %s %.1f', testParam{1}, paramRangeA(aRange)))
         end
+        
+        % Set A param being tested
+        switch testParam{1}
+            case 'qToUse'
+            % Testing charge relationship
+            % e as a quadratic fun of diameter in nm
+%             qToUse = paramRangeA(aRange)*(diameterDist*10^9).^2* ...
+%                 (1.602176634*10^-19);
+
+            % e as linear fun of volume in nm^3
+                qToUse = paramRangeA(aRange)*sphereVolumeBySize*10^27*...
+                    (1.602176634*10^-19);
+
+            case 'systemQ'
+                systemQ = paramRangeA(aRange);
+
+            otherwise
+
+            error('Test param not implemented')
+        end    
         
         % Then do parameter B
         paramRangeB = testRange{2};
@@ -187,117 +237,139 @@ for iSize = 1:length(sizesToUse)
         colsB = jet(numRangeTestsB);
         
         for bRange = 1:numRangeTestsB
-            % Now calculate across diameter distribution
-            analyticAbsorbtion = zeros(length(diameterDist), length(frequencyRange_rad));
+            % Set B param being tested
+            switch testParam{2}
+                case 'qToUse'
+                % Testing charge relationship
+                % e as a quadratic fun of diameter in nm
+%                 qToUse = paramRangeB(bRange)*(diameterDist*10^9).^2* ...
+%                     (1.602176634*10^-19);
 
-            analyticExtinctionCrossSection = zeros(length(diameterDist), length(frequencyRange_rad));
-
-            for jDiameter = 1:length(diameterDist)
-                
-                % Set A param being tested
-                switch testParam{1}
-                    case 'qToUse'
-                    % Testing charge relationship
-                    % e as a quadratic fun of diameter in nm
-                    qToUse = paramRangeA(aRange)*(diameterDist(jDiameter)*10^9)^2* ...
+                    % e as linear fun of volume in nm^3
+                    qToUse = paramRangeB(bRange)*sphereVolumeBySize*10^27*...
                         (1.602176634*10^-19);
 
-                    case 'systemQ'
-                        systemQ = paramRangeA(aRange);
+                case 'systemQ'
+                    systemQ = paramRangeB(bRange);
 
-                    otherwise
-                        
-                    error('Test param not implemented')
-                end
+                otherwise
+                    error('Test param not implemented') 
+            end
+            
+            % Now calculate across slope distribution
+            errorMap = zeros(length(vLRange), length(vTRange));
+            
+            extinctionCrossSection = zeros(length(frequencyRange_rad), numel(errorMap));
+            
+            for jSlope = 1:numel(errorMap)
                 
-                % Set B param being tested
-                switch testParam{2}
-                    case 'qToUse'
-                    % Testing charge relationship
-                    % e as a quadratic fun of diameter in nm
-                    qToUse = paramRangeB(bRange)*(diameterDist(jDiameter)*10^9)^2* ...
-                        (1.602176634*10^-19);
-
-                    case 'systemQ'
-                        systemQ = paramRangeB(bRange);
-
-                    otherwise
-                        error('Test param not implemented') 
-                end
+                % Was previously broken down by size, but removed for now
+                analyticAbsorbtion = zeros(length(frequencyRange_rad),1);
                 
-                % Calculate for each each mode and sum
+                % Do for each mode
                 for kMode = 1:modesToTest
-                    if reducedMassBySize(jDiameter) > 0
-                        tempAbs = calculatesphereabsorbtion(...
-                            frequencyRange_rad, resonanceBySize_rad(jDiameter, kMode), reducedMassBySize(jDiameter), systemQ, qToUse, ...
-                            nanocrystalNumber(sizeIndex)*sizeFrequency(jDiameter), apertureArea);    
+                    
+                    % Get resonant freq across size dist for this mode
+                    tempMap = slopeMap(:, :, kMode);
+                    
+                    resonanceBySize = 1./(diameterDist/2) * tempMap(jSlope);
+                
+                    % Could probably vectorize diameter calc rather than using loop
+                    
+                    % Now calculate for each diameter and sum
+                    for lDiameter = 1:length(diameterDist) 
+                        
+                        % Calculate for each mode and sum
+                        if reducedMassBySize(lDiameter) > 0
+                            
+                            tempAbs = calculatesphereabsorbtion(...
+                                frequencyRange_rad, resonanceBySize(lDiameter), reducedMassBySize(lDiameter), systemQ, qToUse(lDiameter), ...
+                                nanocrystalNumber(sizeIndex)*sizeFrequency(lDiameter), apertureArea);    
 
-                        analyticAbsorbtion(jDiameter, :) = analyticAbsorbtion(jDiameter, :) + tempAbs';
+                            analyticAbsorbtion = 1 - (1 - analyticAbsorbtion) .* (1 - tempAbs);
+                        end
                     end
                 end
                 
-%                 subplot(numRangeTestsB, 2, bRange*2-1); hold on;
-%                 plot(frequencyRange_rad/2/pi/10^9, analyticAbsorbtion(jDiameter, :)*100)
 
-                %subplot(numRangeTestsB, 2, bRange*2); hold on;
-                %plot(frequencyRange_rad/2/pi/10^9, analyticExtinctionCrossSection(jDiameter, :)/10^-21)
+                % Calc blurred
+                if blurAbsorbtion
+                    analyticAbsorbtion = conv(analyticAbsorbtion, sourceSpectra, 'same');
+                end
+
+                
+                % Calculate extinction from absorbtion curve
+                extinctionCrossSection(:,jSlope) = -apertureArea/nanocrystalNumber(sizeIndex).*...
+                        log(1-analyticAbsorbtion);
+                    
+                %%% This cheated and lead to points with no comparison    
+                % Get top parts of extinction curve
+                %topInds = find(extinctionCrossSection(:,jSlope) > max(extinctionCrossSection(:,jSlope))*topFraciton);
+                
+                % Select those that are points to compare
+                %[testInds, measureInds] = intersect(comparisonFreqInds, topInds);
+                
+                % Store SSE error
+                %errorMap(jSlope) = sum((measuredExtinctionCurve(measureInds) - extinctionCrossSection(testInds,jSlope)').^2);
+                errorMap(jSlope) = sum((measuredExtinctionCurve - extinctionCrossSection(comparisonFreqInds,jSlope)').^2);
+                
+                if imag(errorMap(jSlope)) > 0
+                   b = 1; 
+                end
             end
-
-            %%% Removed absorbtion plotting when refactoring
             
-            % Plot combined absorbtion
-%             subplot(numRangeTestsB,2,bRange*2-1); hold on;
-            totalAbsorbtion = sum(analyticAbsorbtion);
-
-%             plot(frequencyRange_rad/2/pi/10^9, totalAbsorbtion*100, 'r')
-
-            % From bulk
-%             plot(frequencyRange_rad/2/pi/10^9, bulkAbsorbtion*100, 'g')
-
-            % Add measured absorbtion curve
-            if sizeIndex == 6
-                % Use proved intensity for 13 nm
-                directAbs = 1 - I_trans_13_mv./I_source_mv;
-
-%                 plot(curveFrequncy/10^9, directAbs*100, 'b-x')
-            else
-               % Otherise calculate intensity 
-               intensityCalc = exp(ExCrossSecCurve_m2{sizeIndex}*-nanocrystalNumber(sizeIndex)/apertureArea) .* ...
-                   I_source_mv;
-
-               absCalc = 1 - intensityCalc./I_source_mv;
-
-%                plot(curveFrequncy/10^9, absCalc*100, 'b-x')
-            end
-
-            % Calc and plot blurred absorbtion
-            blurredAbsorbtion = conv(totalAbsorbtion, sourceSpectra, 'same');
-
-%             plot(frequencyRange_rad/2/pi/10^9, blurredAbsorbtion*100, 'm')
-% 
-%             title(sprintf('Testing %s %.1f', testParam{2}, paramRangeB(bRange)))
-% 
-%             ylabel('Abosorbtion')
-% 
-%             xlim([100 400])
-
-            % Refactored plotting
+            % Find lowest error
+            [~, minInd] = min(errorMap(:));
             
-            % Now plot extinction cross section
+            [vLInd, vTInd] = ind2sub(size(slopeMap), minInd);
             
-            if blurAbsorbtion
-                %Calculate and plot extinction from blurred absorbtion curve;
-                blurredExtinction = -apertureArea/nanocrystalNumber(sizeIndex).*...
-                    log(1-blurredAbsorbtion);
-
-                plot(frequencyRange_rad/2/pi/10^9, blurredExtinction/10^-21, 'color', colsB(bRange, :)) 
-            else
-                % Cross section from combined absorbtion curve
-                totalExtinctionCrossSection = -apertureArea/nanocrystalNumber(sizeIndex).*...
-                    log(1-totalAbsorbtion);
-
-                plot(frequencyRange_rad/2/pi/10^9, totalExtinctionCrossSection/10^-21, 'color', colsB(bRange, :))
-            end
+            % Plot this and note freqs
+            plot(frequencyRange_rad/2/pi/10^9, extinctionCrossSection(:, minInd)/10^-21, 'color', colsB(bRange,:))
+            
+            [maxEx, maxInd] = max(extinctionCrossSection(:,minInd));
+            
+            text(frequencyRange_rad(maxInd)/2/pi/10^9, maxEx/10^-21, ...
+                sprintf('%i, %i', vLRange(vLInd), vTRange(vTInd)));
+            
+            % Store for full comp
+            errorMapAcrossSize(:, aRange, bRange) = errorMapAcrossSize(:, aRange, bRange) + errorMap(:);
+            
+            extincionCurveBySize{iSize, aRange, bRange} = extinctionCrossSection;
         end
     end
+end
+
+[~, minInd] = min(errorMapAcrossSize(:));
+            
+[slopeInd, aInd, bInd] = ind2sub(size(errorMapAcrossSize), minInd);
+
+paramRangeA(aInd)
+
+paramRangeB(bInd)
+
+[vLInd, vTInd] = ind2sub(size(errorMap), slopeInd);
+
+vLRange(vLInd), vTRange(vTInd)
+
+%% Plot best combo
+figure;
+
+for iSize = 1:length(sizesToUse)
+    sizeIndex = sizesToUse(iSize);
+    
+    subplot(1, length(sizesToUse), iSize); hold on
+    
+    curvesToUse = extincionCurveBySize{iSize, aInd, bInd};
+    
+    curvesToUse = curvesToUse(:, slopeInd);
+    
+    measuredExtinctionCurve = ExCrossSecCurve_m2{sizeIndex};
+    
+    % Reference cross section
+    plot(curveFrequncy/10^9, measuredExtinctionCurve/10^-21, 'm-x')
+
+    ylabel('Extinciton')
+
+    xlim([25 475])
+    plot(frequencyRange_rad/2/pi/10^9, curvesToUse/10^-21, 'r')
 end
