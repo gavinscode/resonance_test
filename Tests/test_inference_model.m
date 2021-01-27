@@ -9,23 +9,24 @@ absorbtion_reference
 sizesToUse = [1 4 6];    
     
 % Actual max mode number is -1
-modesToTest = 3;
+modesToTest = 2;
 
 sizeSteps = 0.5/10^9; % in m
 
 scaleCoreSize = 1; % Fixing core size seems to have quite a large effect on lowest peak
 
-blurAbsorbtion = 1;
+blurAbsorbtion = 0;
 
 % Unkowns are q and Q - firstly determine just using abs. and bandwidth
 % Expanded range as padding for convolution
 frequencyRange_rad = (25:475)*10^9*2*pi;
 
 %%% Adapted to test on slope range
-vLRange = 3200:100:4000;
-vTRange = 1200:100:2000;
+vLRange = 3000:100:4000; %3200:50:3650;
+vTRange = 1000:100:2000; %1500:50:1800;
 
-slopeMap = calculateSlopeMap(vTRange, vTRange, modesToTest, 15/10^9, 5/10^9);
+% Fixed to first three modes
+slopeMap = calculateSlopeMap(vLRange, vTRange, modesToTest, 15/10^9, 5/10^9);
 
 % For error fitting
 topFraciton = 0.5;
@@ -35,6 +36,9 @@ comparisonFreqInds = zeros(length(curveFrequncy),1);
 for iFreq = 1:length(curveFrequncy)
     comparisonFreqInds(iFreq) = find(frequencyRange_rad == curveFrequncy(iFreq)*2*pi);
 end
+
+% Remove those greater than 300, 2nd peak too complicated for now! 
+curveIndsToUse = find(curveFrequncy <= 300*10^9);
 
 testParam = {'systemQ', 'qToUse'};
 
@@ -49,7 +53,7 @@ testRange = {3:3:15, 0.15:0.05:0.35};
 numParamTests = length(testParam);
 
 % Store errors across parameter ranges
-errorMapAcrossSize = zeros(numel(slopeMap(:,:,1)), length(testRange{1}), length(testRange{2}));
+errorMapbySize = zeros(numel(slopeMap(:,:,1)), length(testRange{1}), length(testRange{2}),  length(sizesToUse));
 
 extincionCurveBySize = cell(length(sizesToUse), length(testRange{1}), length(testRange{2}));
 
@@ -195,6 +199,8 @@ for iSize = 1:length(sizesToUse)
         % Reference cross section
         plot(curveFrequncy/10^9, measuredExtinctionCurve/10^-21, 'm-x')
 
+        normalizationValue = max(measuredExtinctionCurve(curveIndsToUse));
+        
         % From bulk
         plot(frequencyRange_rad/2/pi/10^9, bulkExtinctionCrossSection/10^-21, 'k:')
 
@@ -311,7 +317,8 @@ for iSize = 1:length(sizesToUse)
                 
                 % Store SSE error
                 %errorMap(jSlope) = sum((measuredExtinctionCurve(measureInds) - extinctionCrossSection(testInds,jSlope)').^2);
-                errorMap(jSlope) = sum((measuredExtinctionCurve - extinctionCrossSection(comparisonFreqInds,jSlope)').^2);
+                errorMap(jSlope) = sum((measuredExtinctionCurve(curveIndsToUse) - ... 
+                    extinctionCrossSection(comparisonFreqInds(curveIndsToUse),jSlope)').^2);
                 
                 if imag(errorMap(jSlope)) > 0
                    b = 1; 
@@ -332,16 +339,18 @@ for iSize = 1:length(sizesToUse)
                 sprintf('%i, %i', vLRange(vLInd), vTRange(vTInd)));
             
             % Store for full comp
-            errorMapAcrossSize(:, aRange, bRange) = errorMapAcrossSize(:, aRange, bRange) + errorMap(:);
+            errorMapBySize(:, aRange, bRange, iSize) = errorMap(:)/normalizationValue;
             
             extincionCurveBySize{iSize, aRange, bRange} = extinctionCrossSection;
         end
     end
 end
 
-[~, minInd] = min(errorMapAcrossSize(:));
+combinedErrorMap = sum(errorMapBySize, 4);
+
+[~, minInd] = min(combinedErrorMap(:));
             
-[slopeInd, aInd, bInd] = ind2sub(size(errorMapAcrossSize), minInd);
+[slopeInd, aInd, bInd] = ind2sub(size(combinedErrorMap), minInd);
 
 paramRangeA(aInd)
 
@@ -372,4 +381,26 @@ for iSize = 1:length(sizesToUse)
 
     xlim([25 475])
     plot(frequencyRange_rad/2/pi/10^9, curvesToUse/10^-21, 'r')
+    
+    % Find best of this specific size
+    
+    tempErrorMap = errorMapBySize(:,:,:,iSize);
+
+    [~, tempMinInd] = min(tempErrorMap(:));
+
+    [tempSlopeInd, tempAInd, tempBInd] = ind2sub(size(tempErrorMap), tempMinInd);
+
+    [tempVLInd, tempVTInd] = ind2sub(size(errorMap), tempSlopeInd);
+
+    curvesToUse = extincionCurveBySize{iSize, tempAInd, tempBInd};
+    
+    curvesToUse = curvesToUse(:, tempSlopeInd);
+    
+    plot(frequencyRange_rad/2/pi/10^9, curvesToUse/10^-21, 'b')
+    
+    [maxEx, maxInd] = max(curvesToUse);
+
+    text(frequencyRange_rad(maxInd)/2/pi/10^9, maxEx/10^-21, ...
+        sprintf('%i, %f, %i %i', ...
+        paramRangeA(tempAInd), paramRangeB(tempBInd), vLRange(tempVLInd), vTRange(tempVTInd)));
 end
