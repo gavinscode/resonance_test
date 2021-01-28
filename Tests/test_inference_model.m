@@ -9,7 +9,7 @@ absorbtion_reference
 sizesToUse = [1 4 6];    
     
 % Actual max mode number is -1
-modesToTest = 2;
+modesToTest = 3;
 
 sizeSteps = 0.5/10^9; % in m
 
@@ -22,8 +22,8 @@ blurAbsorbtion = 0;
 frequencyRange_rad = (25:475)*10^9*2*pi;
 
 %%% Adapted to test on slope range
-vLRange = 3000:100:4000; %3200:50:3650;
-vTRange = 1000:100:2000; %1500:50:1800;
+vLRange = 3200:50:3650;
+vTRange = 1500:50:1800;
 
 % Fixed to first three modes
 slopeMap = calculateSlopeMap(vLRange, vTRange, modesToTest, 15/10^9, 5/10^9);
@@ -82,10 +82,13 @@ for iSize = 1:length(sizesToUse)
     % Create blurring function from source
     if freqResolution_Ghz(sizeIndex) == 50
         % convert freq resolution (when FWHM) to sigma
+        
+        % Seems to work, even though in GHz..?
         sigma = freqResolution_Ghz(sizeIndex)/(2*sqrt(2*log(2)));
 
-        sourceSpectra = 1/(sigma*sqrt(2*pi))*exp(-((1:200)-100).^2/...
+        sourceSpectra = 1/(sigma*sqrt(2*pi))*exp(-(((1:200)-100)).^2/...
             (2*(sigma)^2));
+        
     else
         error('No conversion for resolution to sigma')
     end
@@ -209,10 +212,10 @@ for iSize = 1:length(sizesToUse)
         xlim([25 475])
         
         if aRange == 1
-            title(sprintf('Base size %.1f Testing %s %.1f', nanocrystalSize_m(sizeIndex)*10^9, ...
-                testParam{1}, paramRangeA(aRange)))
+            title(sprintf('Base size %.1f Testing QF %.1f', nanocrystalSize_m(sizeIndex)*10^9, ...
+                paramRangeA(aRange)))
         else
-            title(sprintf('Testing %s %.1f', testParam{1}, paramRangeA(aRange)))
+            title(sprintf('Testing QF %.1f', paramRangeA(aRange)))
         end
         
         % Set A param being tested
@@ -335,9 +338,13 @@ for iSize = 1:length(sizesToUse)
             
             [maxEx, maxInd] = max(extinctionCrossSection(:,minInd));
             
+%             text(frequencyRange_rad(maxInd)/2/pi/10^9, maxEx/10^-21, ...
+%                 sprintf('%i, %i', vLRange(vLInd), vTRange(vTInd)));
+
             text(frequencyRange_rad(maxInd)/2/pi/10^9, maxEx/10^-21, ...
-                sprintf('%i, %i', vLRange(vLInd), vTRange(vTInd)));
-            
+                sprintf('Charge %.2f', paramRangeB(bRange)));
+
+
             % Store for full comp
             errorMapBySize(:, aRange, bRange, iSize) = errorMap(:)/normalizationValue;
             

@@ -140,15 +140,19 @@ plot(nanocrystalSize_m(sizesToUse)*10^9, QEstimate, 'bx-')
 plot(nanocrystalSize_m(sizeWithDist)*10^9, QEstimate(sizeWithDist), 'bo')
 plot(avgSphereRadius*10^9, QEstimate(sizeWithDist), 'rx-')
 title('Quality factor');
-ylim([0 15]); xlim([5 15]);
+ylabel('Quality factor')
+xlabel('Diameter (nm)')
+ylim([0 10]); xlim([5 15]);
 
 subplot(3,2,2); hold on
 plot(nanocrystalSize_m(sizesToUse)*10^9, qEstimate/(1.602176634*10^-19), 'bx-')
 plot(nanocrystalSize_m(sizeWithDist)*10^9, qEstimate(sizeWithDist)/(1.602176634*10^-19), 'bo')
 plot(avgSphereRadius*10^9, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
-title('Charge (in e) - not fits are on blue');
+title('Charge (in e) - fits are on blue');
 ylim([0 500]); 
 xlim([0 15]);
+ylabel('Charge')
+xlabel('Diameter (nm)')
 
 % Note this is e as function of nanometers...
 
@@ -166,15 +170,18 @@ opts = fitoptions('poly2', 'Lower', [-Inf 0 0], 'Upper', [Inf 0 0]);
 fittedQuad = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'poly2', opts)
 quadH = plot(fittedQuad,'b');
 
-opts = fitoptions('exp1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
-fittedExp = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'exp1', opts)
-expH = plot(fittedExp, 'g');
+% opts = fitoptions('exp1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+% fittedExp = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'exp1', opts)
+% expH = plot(fittedExp, 'g');
+% 
+% opts = fitoptions('power1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+% fittedPower = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'power1', opts)
+% powerH = plot(fittedPower, 'r');
+% 
+% legend([lineH, quadH, expH, powerH], {'Linear', 'Quad', 'Exp', 'Power'})
 
-opts = fitoptions('power1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
-fittedPower = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'power1', opts)
-powerH = plot(fittedPower, 'r');
-
-legend([lineH, quadH, expH, powerH], {'Linear', 'Quad', 'Exp', 'Power'})
+ylabel('Charge')
+xlabel('Area (nm^2)')
 
 subplot(3,2,4); hold on
 plot(sphereArea*10^18, qEstimate/(1.602176634*10^-19), 'bx-')
@@ -193,6 +200,9 @@ opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
 fittedLine = fit([sphereArea']*10^18, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
 lineHFree = plot(fittedLine,'k:');
 
+ylabel('Charge')
+xlabel('Area (nm^2)')
+
 subplot(3,2,6); hold on
 plot(sphereVolume*10^27, qEstimate/(1.602176634*10^-19), 'bx-')
 plot(sphereVolume(sizeWithDist)*10^27, qEstimate(sizeWithDist)/(1.602176634*10^-19), 'bo')
@@ -209,3 +219,5 @@ lineH = plot(fittedLine,'k');
 opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
 fittedLine = fit([sphereVolume']*10^27, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
 lineHFree = plot(fittedLine,'k:');
+ylabel('Charge')
+xlabel('Voume (nm^3)')

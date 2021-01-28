@@ -74,6 +74,8 @@ plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal2ndFreqResonance_hz(siz
 plot(1./(nanocrystalSize_m*10^9), nanocrystal3rdFreqResonance_hz/10^9, 'xk')
 plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal3rdFreqResonance_hz(sizesToUse)/10^9, 'ok')
 
+handles = zeros(3,1);
+
 %For each mode
 for iMode = 0:2
     resonantFreqs = zeros(length(diametersToCalc), zerosToCalc(iMode+1)+1);
@@ -96,7 +98,10 @@ for iMode = 0:2
             plot(diametersToCalc*10^9, resonantFreqs(:,jZero)/10^9, 'color', zerosCols(iMode+1))
             
             subplot(1,2,2); hold on;
-            plot(1./(diametersToCalc*10^9), resonantFreqs(:,jZero)/10^9, 'color', zerosCols(iMode+1))
+            tempH = plot(1./(diametersToCalc*10^9), resonantFreqs(:,jZero)/10^9, 'color', zerosCols(iMode+1))
+            if jZero == 1
+               handles(iMode+1) = tempH; 
+            end
         end
     end
 end
@@ -104,9 +109,11 @@ end
 subplot(1,2,1); hold on;
 xlim([6 15])
 ylim([100 400])
-title('normal diameter')
+xlabel('Diameter (nm)')
+ylabel('Frequncy (GHz)')
 
 subplot(1,2,2); hold on;
 xlim([1/15 1/6])
-title('reciprical diameter')
+xlabel('Reciprical diameter (nm-1)')
 ylim([100 400])
+legend(handles, {'Radial','Dipolar','Quadrupolar'})

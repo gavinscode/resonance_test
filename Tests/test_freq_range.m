@@ -145,13 +145,13 @@ for iSize = 1:length(sizesToUse)
     end
 end
 
-% Make map of curve slopes
+%% Make map of curve slopes
 %%% Note slopes are from reciprical of radius
 % Note, this is for bulk sphere, no core mass averaging
 
-testLong = 3200:100:4000;
+testLong = 3200:50:4000;
 
-testTrans = 1200:100:2000;
+testTrans = 1200:50:2000;
 
 % Get resonant freq slop range of speed combinations
 slopeMap = zeros(length(testLong), length(testTrans), modesToTest);
@@ -181,12 +181,18 @@ end
 % sum(slopeMap(:) - slopes(:))
 
 %%
+warning('Adjusted freqs on 1st and 4th')
+nanocrystalFreqResonance_hz = [230 241 175 200 170 165]*10^9;
+
 figure;
+
+sizeCols = jet(6);
 
 for iMode = 1:modesToTest
     subplot(2,modesToTest,iMode)
     
     imshow(slopeMap(:,:,iMode)/max(slopeMap(:)))
+    hold on
     
     axis on
     set(gca, 'YTickLabel', testTrans, 'YTick', 1:length(testTrans), ...
@@ -205,21 +211,38 @@ for iMode = 1:modesToTest
         end
     end
     
-    switch iMode
-        case 1
-            plot(1./(nanocrystalSize_m*10^9), nanocrystalFreqResonance_hz/10^9, 'xk')
-            plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystalFreqResonance_hz(sizesToUse)/10^9, 'ok')
-
-        case 2
-            plot(1./(nanocrystalSize_m*10^9), nanocrystal2ndFreqResonance_hz/10^9, 'xk')
-            plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal2ndFreqResonance_hz(sizesToUse)/10^9, 'ok')
-
-        case 3
-            plot(1./(nanocrystalSize_m*10^9), nanocrystal3rdFreqResonance_hz/10^9, 'xk')
-            plot(1./(nanocrystalSize_m(sizesToUse)*10^9), nanocrystal3rdFreqResonance_hz(sizesToUse)/10^9, 'ok')
-    end
-    
     xlim([1/15 1/6])
     title('reciprical diameter')
     ylim([100 400])
+    
+    switch iMode
+        case 1
+            freqsToUse = nanocrystalFreqResonance_hz;
+        
+        case 2
+            freqsToUse = nanocrystal2ndFreqResonance_hz;    
+            
+        case 3
+            freqsToUse = nanocrystal3rdFreqResonance_hz;
+    end
+    
+    plot(1./(nanocrystalSize_m*10^9), freqsToUse/10^9, 'xk')
+    plot(1./(nanocrystalSize_m(sizesToUse)*10^9), freqsToUse(sizesToUse)/10^9, 'ok')
+
+    subplot(2,modesToTest,iMode);   
+        
+    for jSize = 1:length(nanocrystalSize_m)
+        if ~isnan(freqsToUse(jSize))
+            slope = (freqsToUse(jSize)*2*pi)./(1/(nanocrystalSize_m(jSize)/2));
+
+            temp = slopeMap(:, :, iMode);
+
+            closeInds = find(abs(temp(:)-slope) < 100);
+            
+            [xInd, yInd] = ind2sub(size(slopeMap(:,:,iMode)), closeInds);
+
+            plot(yInd+0.1*jSize-0.3, xInd+0.1*jSize-0.3, '.', 'color', sizeCols(jSize,:));
+        end
+    end
+    
 end
