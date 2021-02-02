@@ -26,7 +26,7 @@ nanocrystal2ndFreqResonance_hz = [380  NaN 322 360 271 250]*10^9;
 nanocrystal3rdFreqResonance_hz = [NaN NaN NaN NaN 333 370]*10^9;
 
 % Using text values for all but 8.4 (typo in text)
-nanocrystalFreqBandwidth_hz = [31 45.70 34 40 17 40]*10^9; % Note, this is HW
+nanocrystalFreqBandwidth_hz = [31 45.70 34 40 17 40]*10^9; % Note, values are in HW
 
 nanocrystal2ndFreqBandwidth_hz = [50 NaN 32 70 15 NaN]*10^9;
 
@@ -34,6 +34,10 @@ nanocrystal3rdFreqBandwidth_hz = [NaN NaN NaN NaN 15 60]*10^9;
 
 % Double as HW provided in text - FW required for getting systemQ
 nanocrystalFreqBandwidth_hz = nanocrystalFreqBandwidth_hz*2;
+
+nanocrystal2ndFreqBandwidth_hz = nanocrystal2ndFreqBandwidth_hz*2;
+
+nanocrystal2ndFreqBandwidth_hz = nanocrystal2ndFreqBandwidth_hz*2;
 
 % Using text values for all
 nanocrystalThetaEx_m2 = [0.7 1.1 1.6 2.0 4.1 5.7]*10^-21;

@@ -121,7 +121,7 @@ for iSize = 1:length(sizesToUse)
 
     % Absorbtion and extinction for bulk    
     [bulkAbsorbtion, bulkExtinctionCrossSection] = calculatesphereabsorbtion(frequencyRange_rad, resonance_rad, ...
-        reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex), apertureArea);
+        reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex), apertureArea, 1);
     
     % Pre determine fixed parameters for each size
     resonanceBySize_rad = zeros(length(diameterDist), modesToTest);
@@ -293,7 +293,7 @@ for iSize = 1:length(sizesToUse)
                             
                             tempAbs = calculatesphereabsorbtion(...
                                 frequencyRange_rad, resonanceBySize(lDiameter), reducedMassBySize(lDiameter), systemQ, qToUse(lDiameter), ...
-                                nanocrystalNumber(sizeIndex)*sizeFrequency(lDiameter), apertureArea);    
+                                nanocrystalNumber(sizeIndex)*sizeFrequency(lDiameter), apertureArea, 1);    
 
                             analyticAbsorbtion = 1 - (1 - analyticAbsorbtion) .* (1 - tempAbs);
                         end
