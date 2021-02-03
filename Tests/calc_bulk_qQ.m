@@ -20,6 +20,8 @@ qEstimate = zeros(length(sizesToUse),1);
 
 QEstimate = zeros(length(sizesToUse),1);
 
+reducedMassBySize = zeros(length(sizesToUse),1);
+
 % Get sphere parameters
 sphereArea = 4*pi*(nanocrystalSize_m(sizesToUse)/2).^2;
 
@@ -106,14 +108,14 @@ for iSize = 1:length(sizesToUse)
     % Take difference in volume
     shellMass = (totalVolume - coreVolume)*CdTeDensity_kgpm3;
 
-    reducedMass = coreMass*shellMass/(coreMass + shellMass);
+    reducedMassBySize(iSize) = coreMass*shellMass/(coreMass + shellMass);
 
 %     systemSpring = resonance_rad^2*reducedMass;
 % 
 %     systemDamp = resonance_rad*reducedMass/QEstimate(iSize);
     
     qEstimate(iSize) = sqrt(nanocrystalThetaEx_m2(sizeIndex) * resonance_rad * ...
-        reducedMass*VACCUM_PERMITIVITY*LIGHT_SPEED./QEstimate(iSize)); 
+        reducedMassBySize(iSize)*VACCUM_PERMITIVITY*LIGHT_SPEED./QEstimate(iSize)); 
 end
 
 % Test size comparisons
@@ -135,7 +137,7 @@ title('Volume')
 
 
 figure;
-subplot(3,2,1); hold on
+subplot(3,3,1); hold on
 plot(nanocrystalSize_m(sizesToUse)*10^9, QEstimate, 'bx-')
 plot(nanocrystalSize_m(sizeWithDist)*10^9, QEstimate(sizeWithDist), 'bo')
 plot(avgSphereRadius*10^9, QEstimate(sizeWithDist), 'rx-')
@@ -144,7 +146,7 @@ ylabel('Quality factor')
 xlabel('Diameter (nm)')
 ylim([0 10]); xlim([5 15]);
 
-subplot(3,2,2); hold on
+subplot(3,3,2); hold on
 plot(nanocrystalSize_m(sizesToUse)*10^9, qEstimate/(1.602176634*10^-19), 'bx-')
 plot(nanocrystalSize_m(sizeWithDist)*10^9, qEstimate(sizeWithDist)/(1.602176634*10^-19), 'bo')
 plot(avgSphereRadius*10^9, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
@@ -154,10 +156,9 @@ xlim([0 15]);
 ylabel('Charge')
 xlabel('Diameter (nm)')
 
+subplot(3,3,2); hold on
 % Note this is e as function of nanometers...
-
 % Use fit 2nd order polynomial
-warning('Note - line only uses sizes with distributions')
 opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
 fittedLine = fit([nanocrystalSize_m']*10^9, [qEstimate]/(1.602176634*10^-19), 'poly1', opts)
 lineH = plot(fittedLine,'k');
@@ -183,7 +184,7 @@ quadH = plot(fittedQuad,'b');
 ylabel('Charge')
 xlabel('Area (nm^2)')
 
-subplot(3,2,4); hold on
+subplot(3,3,5); hold on
 plot(sphereArea*10^18, qEstimate/(1.602176634*10^-19), 'bx-')
 plot(sphereArea(sizeWithDist)*10^18, qEstimate(sizeWithDist)/(1.602176634*10^-19), 'bo')
 plot(avgSphereArea*10^18, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
@@ -203,7 +204,7 @@ lineHFree = plot(fittedLine,'k:');
 ylabel('Charge')
 xlabel('Area (nm^2)')
 
-subplot(3,2,6); hold on
+subplot(3,3,8); hold on
 plot(sphereVolume*10^27, qEstimate/(1.602176634*10^-19), 'bx-')
 plot(sphereVolume(sizeWithDist)*10^27, qEstimate(sizeWithDist)/(1.602176634*10^-19), 'bo')
 plot(avgSphereVolume*10^27, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
@@ -221,3 +222,58 @@ fittedLine = fit([sphereVolume']*10^27, [qEstimate]/(1.602176634*10^-19), 'poly1
 lineHFree = plot(fittedLine,'k:');
 ylabel('Charge')
 xlabel('Voume (nm^3)')
+
+%%% Try against resonator intensity
+subplot(3,3,3); hold on
+plot(nanocrystalSize_m*10^9, qEstimate./sqrt(reducedMassBySize)*10^6, 'bx-')
+plot(nanocrystalSize_m(sizeWithDist)*10^9, qEstimate(sizeWithDist)./sqrt(reducedMassBySize(sizeWithDist))*10^6, 'bo')
+% plot(avgSphereRadius*10^9, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
+title('Resonance intensity scale');
+ylim([0 5]); 
+xlim([0 15]);
+ylabel('Charge x sqrt(reduced mass)')
+xlabel('Diameter (nm)')
+
+opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
+fittedLine = fit([nanocrystalSize_m']*10^9, [qEstimate]./sqrt(reducedMassBySize)*10^6, 'poly1', opts)
+lineH = plot(fittedLine,'k');
+
+opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+fittedLine = fit([nanocrystalSize_m']*10^9, [qEstimate]./sqrt(reducedMassBySize)*10^6, 'poly1', opts)
+lineHFree = plot(fittedLine,'k:');
+
+subplot(3,3,6); hold on
+plot(sphereArea*10^18, qEstimate./sqrt(reducedMassBySize)*10^6, 'bx-')
+plot(sphereArea(sizeWithDist)*10^18, qEstimate(sizeWithDist)./sqrt(reducedMassBySize(sizeWithDist))*10^6, 'bo')
+% plot(avgSphereRadius*10^9, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
+title('Resonance intensity scale');
+ylim([0 5]); 
+xlim([0 600]);
+ylabel('Charge x sqrt(reduced mass)')
+xlabel('Area (nm^2)')
+
+opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
+fittedLine = fit([sphereArea']*10^18, [qEstimate]./sqrt(reducedMassBySize)*10^6, 'poly1', opts)
+lineH = plot(fittedLine,'k');
+
+opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+fittedLine = fit([sphereArea']*10^18, [qEstimate]./sqrt(reducedMassBySize)*10^6, 'poly1', opts)
+lineHFree = plot(fittedLine,'k:');
+
+subplot(3,3,9); hold on
+plot(sphereVolume*10^27, qEstimate./sqrt(reducedMassBySize)*10^6, 'bx-')
+plot(sphereVolume(sizeWithDist)*10^27, qEstimate(sizeWithDist)./sqrt(reducedMassBySize(sizeWithDist))*10^6, 'bo')
+% plot(avgSphereRadius*10^9, qEstimateVolDist/(1.602176634*10^-19), 'rx-')
+title('Resonance intensity scale');
+ylim([0 5]); 
+xlim([0 1500]);
+ylabel('Charge x sqrt(reduced mass)')
+xlabel('Volume (nm^3)')
+
+opts = fitoptions('poly1', 'Lower', [-Inf 0], 'Upper', [Inf 0]);
+fittedLine = fit([sphereVolume']*10^27, [qEstimate]./sqrt(reducedMassBySize)*10^6, 'poly1', opts)
+lineH = plot(fittedLine,'k');
+
+opts = fitoptions('poly1', 'Lower', [-Inf -Inf], 'Upper', [Inf Inf]);
+fittedLine = fit([sphereVolume']*10^27, [qEstimate]./sqrt(reducedMassBySize)*10^6, 'poly1', opts)
+lineHFree = plot(fittedLine,'k:');

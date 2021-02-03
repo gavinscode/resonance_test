@@ -21,6 +21,8 @@ function [absorbtion, extinction, power, amplitude] = calculatesphereabsorbtion(
     
     amplitude = zeros(length(frequencyRange_rad), 1);
     
+    %%% Should just be vectorized rather than in loop
+    
     for iFreq = 1:length(frequencyRange_rad)
         % Eqn 7
         amplitude(iFreq) = chargeDifference*drive./(mass*...

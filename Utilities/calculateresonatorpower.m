@@ -1,11 +1,16 @@
 function [power] = calculateresonatorpower(frequencyRange_rad, resonance_rad, ...
-    intensity, gamma)
+    intensity, qualityFactor)
     % From Matthew Schwartz, Lecture 2 driven oscillators
     
     power = zeros(length(frequencyRange_rad), 1);
     
+    % swapped to using consistent quality factor to match sphere resonator model
+    gamma = resonance_rad/qualityFactor;
+    
 %     test = zeros(length(frequencyRange_rad), 1);
     
+    %%% Should just be vectorized rather than in loop
+
     for iFreq = 1:length(frequencyRange_rad)
         % drive and mass incorperated into intensity - drive^2/mass
         power(iFreq) = (intensity^2/(2*gamma))*(gamma*frequencyRange_rad(iFreq))^2/...
