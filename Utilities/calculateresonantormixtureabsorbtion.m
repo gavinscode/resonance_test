@@ -30,6 +30,8 @@ function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequen
     
     absorbtion = zeros(length(frequencyRange_rad),1);
     
+%     figure; hold on
+    
     % Calculate resonator power
     for jSize = 1:nResonance
         if ~intensityVaries
@@ -41,6 +43,8 @@ function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequen
         tempEx = power/(0.5*VACCUM_PERMITIVITY*LIGHT_SPEED*drive^2);
         
         tempAbs = (1-exp(-tempEx*number(jSize)/area));
+        
+%         plot(tempAbs);
         
         absorbtion = 1 - (1 - absorbtion) .* (1 - tempAbs);
     end
