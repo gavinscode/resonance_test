@@ -2,10 +2,8 @@ function [absorbtion, extinction, power, amplitude] = calculatesphereabsorbtion(
     mass, qualityFactor, chargeDifference, number, area, drive, mediumPermitivity)
     % from Yang...Sun 2016
 
-    if nargin == 9
-        if ~isempty(mediumPermitivity)
-           error('Flux equaiton needs to be modified') 
-        end
+    if ~isempty(mediumPermitivity)
+       error('Flux equaiton needs to be modified') 
     end
     
     % Constants  - should be same as the main
