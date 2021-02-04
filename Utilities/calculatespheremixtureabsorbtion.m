@@ -1,9 +1,6 @@
 function [absorbtion, extinction] = calculatespheremixtureabsorbtion(frequencyRange_rad, resonance_rad, ...
     mass, qualityFactor, chargeDifference, number, area, drive, mediumPermitivity)
 
-    % Currently takes multiple sizes with fixed q, but will adapt to take
-    % varying q and Q
-
     nResonance = length(resonance_rad);
     
     % Check array lengths match
@@ -12,14 +9,33 @@ function [absorbtion, extinction] = calculatespheremixtureabsorbtion(frequencyRa
         error('array lengths incorrect')
     end
     
+    if length(chargeDifference) > 1
+        if nResonance ~= length(chargeDifference)
+            error('array lengths incorrect')
+        end
+        chargeVaries = 1;
+    else
+        chargeVaries = 0;
+    end
+    
+    if length(qualityFactor) > 1
+       error('Array QF not jet implemented') 
+    end
+    
     absorbtion = zeros(length(frequencyRange_rad),1);
     
     for jDiameter = 1:nResonance
                        
-        tempAbs = calculatesphereabsorbtion(...
-            frequencyRange_rad, resonance_rad(jDiameter), mass(jDiameter), qualityFactor, chargeDifference, ...
-            number(jDiameter), area, drive, mediumPermitivity);    
+        if chargeVaries
+            chargeToUse = chargeDifference(jDiameter);
+        else
+            chargeToUse = chargeDifference;
+        end
 
+        tempAbs = calculatesphereabsorbtion(...
+            frequencyRange_rad, resonance_rad(jDiameter), mass(jDiameter), qualityFactor, chargeToUse, ...
+            number(jDiameter), area, drive, mediumPermitivity);   
+        
         absorbtion = 1 - (1 - absorbtion) .* (1 - tempAbs);
     end
     

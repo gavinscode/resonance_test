@@ -34,11 +34,13 @@ function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequen
     
     % Calculate resonator power
     for jSize = 1:nResonance
-        if ~intensityVaries
-            power = calculateresonatorpower(frequencyRange_rad, resonance_rad(jSize), intensity, qualityFactor);
+        if intensityVaries
+           intensityToUse = intensity(jSize); 
         else
-            power = calculateresonatorpower(frequencyRange_rad, resonance_rad(jSize), intensity(jSize), qualityFactor);
+           intensityToUse = intensity;
         end
+        
+        power = calculateresonatorpower(frequencyRange_rad, resonance_rad(jSize), intensityToUse, qualityFactor);
         
         tempEx = power/(0.5*VACCUM_PERMITIVITY*LIGHT_SPEED*drive^2);
         
@@ -49,6 +51,7 @@ function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequen
         absorbtion = 1 - (1 - absorbtion) .* (1 - tempAbs);
     end
     
+    %%% Area should probably cancel out
     extinction = -area/sum(number).*log(1-absorbtion);
 end
 
