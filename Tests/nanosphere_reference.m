@@ -89,7 +89,7 @@ CdTeVelocity_mps = [3280 1623];  % m/s %ratio: 2.0
 CdTeDensity_kgpm3 = 5856;        % kg/m^3 
 
 % From Calc in get_aperture file
-apertureArea = 2.11*10^-4;
+apertureArea = 2.1*10^-4;
 
 % General constants
 VACCUM_PERMITIVITY = 8.854187817*10^-12; %C^2/(N.M^2)

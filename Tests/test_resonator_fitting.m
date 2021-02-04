@@ -8,22 +8,24 @@ absorbtion_reference
 % Start with sizes measured on 50 GHz Bandwidth
 sizesToUse = [1 4 6];    
 
-interpolateSizeDist = 1; % If not set, uses original distrabution
+simWithInterpSizeDist = 0; % If not set, uses original distribution for simulation
 
-varyCharge = 1;
+varyCharge = 0; % in simulation, using quadratic model?
 
 sizeSteps = 1/10^9; % in m
+
+fitRealData = 1; % if not set, fits simulated data
 
 % typeOfSolution = '3Coeffs';
 
 % typeOfSolution = 'IntensityPerSize';
 
 typeOfSolution = 'IntensityFunction';
-    typeOfFunction = 'Linear';
-%     typeOfFunction = 'Quadratic';
+%     typeOfFunction = 'Linear';
+    typeOfFunction = 'Quadratic';
 %     typeOfFunction = 'Cubic';
 
-frequencyRange_rad = (50:400)*10^9*2*pi;
+frequencyRange_rad = (50:5:300)*10^9*2*pi;
 
 for iSize = 1:length(sizesToUse);
     sizeIndex = sizesToUse(iSize);
@@ -33,7 +35,7 @@ for iSize = 1:length(sizesToUse);
     
     countDistOrig = nanocrystalSizeDist{sizeIndex, 2};
     
-    if interpolateSizeDist
+    if simWithInterpSizeDist
         [countDist, diameterDist] = interpolatescaleddistribution(countDistOrig, diameterDistOrig, sizeSteps);
     else
         diameterDist = diameterDistOrig;
@@ -49,6 +51,10 @@ for iSize = 1:length(sizesToUse);
                 nanocrystalSize_m(sizeIndex);  
     
     measuredExtinctionCurve = ExCrossSecCurve_m2{sizeIndex};
+    % Interpolate to currenct frequncies
+    measuredExtinctionCurve = interp1(curveFrequncy*2*pi, measuredExtinctionCurve, frequencyRange_rad, 'linear', 'extrap');
+    
+    measuredExtinctionCurve(measuredExtinctionCurve < 0) = 0;
     
     % Calculate parameters from bulk
     coreVolume = 4/3*pi*(nanocrystalCore_m(sizeIndex)/2).^3;
@@ -132,7 +138,7 @@ for iSize = 1:length(sizesToUse);
         reducedMassBySize, bulkQF, chargeToUse, nanocrystalNumber(sizeIndex)*sizeFrequency, apertureArea, 1, []);
     
     figure;
-    plot(curveFrequncy/10^9, measuredExtinctionCurve/10^-21, 'm-x'); hold on
+    plot(frequencyRange_rad/2/pi/10^9, measuredExtinctionCurve/10^-21, 'm-'); hold on
     
     plot(frequencyRange_rad/2/pi/10^9, bulkExtinctionCrossSection/10^-21, 'g')
 
@@ -140,14 +146,23 @@ for iSize = 1:length(sizesToUse);
     
     plot(frequencyRange_rad/2/pi/10^9, simulatedExtinctionCrossSection/10^-21, 'g')
     
+    if fitRealData
+        dataToFit = measuredExtinctionCurve;
+    else
+        dataToFit = simulatedExtinctionCrossSection;
+    end
+    
     switch typeOfSolution
     
         % Use solver for 3 coefficients
         case '3Coeffs'
             % Parameters rescalled to similar ranges
             x0 = [resonantSlope/1000, bulkCharge/sqrt(reducedMass)*10^6, bulkQF];
-
-            f = @(x)(calculateerror_equalcoefficients(x, simulatedExtinctionCrossSection, diameterDistOrig, ...
+            
+            lb = [resonantSlope/1000/2 0 1];
+            ub = [resonantSlope/1000*2 20 20];
+            
+            f = @(x)(calculateerror_equalcoefficients(x, dataToFit, diameterDistOrig, ...
                 nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, frequencyRange_rad, 10^21));
     
         % Use solver allowing for varying intensity    
@@ -157,21 +172,28 @@ for iSize = 1:length(sizesToUse);
         x0 = [resonantSlope/1000, bulkCharge/sqrt(reducedMass)*10^6*ones(1,length(diameterDistOrig)),...
             bulkQF];
 
-        f = @(x)(calculateerror_varyingintensity(x, simulatedExtinctionCrossSection, diameterDistOrig, ...
+        lb = [resonantSlope/1000/2 zeros(1,length(diameterDistOrig)) 1];
+        ub = [resonantSlope/1000*2 20*ones(1,length(diameterDistOrig))  20];
+            
+        f = @(x)(calculateerror_varyingintensity(x, dataToFit, diameterDistOrig, ...
             nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, frequencyRange_rad, 10^21));
     
         case 'IntensityFunction'
             
             x0 = [resonantSlope/1000, 0.01, bulkQF];
 
-            f = @(x)(calculateerror_intensityfunction(x, simulatedExtinctionCrossSection, diameterDistOrig, ...
+            lb = [resonantSlope/1000/2 0.001 0.5];
+            ub = [resonantSlope/1000*2 0.5 20];
+            
+            f = @(x)(calculateerror_intensityfunction(x, dataToFit, diameterDistOrig, ...
                 nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, frequencyRange_rad, 10^21, typeOfFunction));
     end
     
-    options = optimoptions('lsqnonlin','Display','iter', 'FunctionTolerance', 1e-10);
+    options = optimoptions('lsqnonlin','Display','iter', 'FunctionTolerance', 1e-10, ...
+        'MaxFunctionEvaluations', 10^6, 'MaxIterations', 10^4);
     
     % Use lower bound at zero for all
-    solution = lsqnonlin(f, x0, zeros(length(x0),1), [], options)
+    solution = lsqnonlin(f, x0, lb, ub, options)
     
     solution - x0
     
