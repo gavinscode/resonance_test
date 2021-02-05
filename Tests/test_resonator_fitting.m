@@ -8,26 +8,30 @@ absorbtion_reference
 % Start with sizes measured on 50 GHz Bandwidth
 sizesToUse = [1 4 6];    
 
-simWithInterpSizeDist = 0; % If not set, uses original distribution for simulation
+simWithInterpSizeDist = 1; % If not set, uses original distribution for simulation
 
 varyCharge = 0; % in simulation, using quadratic model?
 
-sizeSteps = 1/10^9; % in m
+sizeSteps = 0.5/10^9; % in m
 
 fitRealData = 1; % if not set, fits simulated data
 
-% typeOfSolution = '3Coeffs';
+% fitWithSizeType = 'Single';
+% fitWithSizeType = 'Original';
+fitWithSizeType = 'FullInterp';
 
-% typeOfSolution = 'IntensityPerSize';
+% typeOfFit = '3Coeffs';
 
-typeOfSolution = 'IntensityFunction';
-%     typeOfFunction = 'Linear';
-    typeOfFunction = 'Quadratic';
+typeOfFit = 'IntensityPerSize';
+
+% typeOfFit = 'IntensityFunction';
+    typeOfFunction = 'Linear';
+%     typeOfFunction = 'Quadratic';
 %     typeOfFunction = 'Cubic';
 
-frequencyRange_rad = (50:5:300)*10^9*2*pi;
+frequencyRange_rad = (100:5:250)*10^9*2*pi;
 
-for iSize = 1:length(sizesToUse);
+for iSize = 1; %1:length(sizesToUse);
     sizeIndex = sizesToUse(iSize);
 
     % Get size dist
@@ -35,21 +39,27 @@ for iSize = 1:length(sizesToUse);
     
     countDistOrig = nanocrystalSizeDist{sizeIndex, 2};
     
-    if simWithInterpSizeDist
-        [countDist, diameterDist] = interpolatescaleddistribution(countDistOrig, diameterDistOrig, sizeSteps);
-    else
-        diameterDist = diameterDistOrig;
-
-        countDist = countDistOrig;
-    end
-    
     sizeFrequencyOrig = countDistOrig/sum(countDistOrig);
+    
+    [countDistInterp, diameterDistInterp] = interpolatescaleddistribution(countDistOrig, diameterDistOrig, sizeSteps);
+    
+    sizeFrequencyInterp = countDistInterp/sum(countDistInterp);
+    
+    if simWithInterpSizeDist
+        diameterDistSim = diameterDistInterp;
 
-    sizeFrequency = countDist/sum(countDist);
+        countDistSim = countDistInterp;
+        
+    else
+        diameterDistSim = diameterDistOrig;
+
+        countDistSim = countDistOrig;
+    end
+
+    sizeFrequencySim = countDistSim/sum(countDistSim);
     
-    coreDist = nanocrystalCore_m(sizeIndex).*diameterDist(:)/ ...
-                nanocrystalSize_m(sizeIndex);  
-    
+            
+            
     measuredExtinctionCurve = ExCrossSecCurve_m2{sizeIndex};
     % Interpolate to currenct frequncies
     measuredExtinctionCurve = interp1(curveFrequncy*2*pi, measuredExtinctionCurve, frequencyRange_rad, 'linear', 'extrap');
@@ -90,30 +100,30 @@ for iSize = 1:length(sizesToUse);
         reducedMass, bulkQF, bulkCharge, nanocrystalNumber(sizeIndex), apertureArea, 1, []);
     
     [~, testExtinction] = calculateresonantormixtureabsorbtion(frequencyRange_rad, resonance_rad, ...
-        bulkCharge/sqrt(reducedMass), bulkQF, nanocrystalNumber(sizeIndex), apertureArea, 1, []);
+        bulkCharge/sqrt(reducedMass), bulkQF, nanocrystalNumber(sizeIndex), []);
     
     % Make coarse synthetic and plot against original and single
     %%% Fixed Q and q - should be easy to fit...
     
-    resonanceBySize_rad = zeros(length(diameterDist), 1);
+    resonanceBySize_rad = zeros(length(diameterDistSim), 1);
     
-    reducedMassBySize = zeros(length(diameterDist), 1);
+    reducedMassBySize = zeros(length(diameterDistSim), 1);
     
     if varyCharge
         % Set charge in e as quadractic fn of diameter in nm
-        chargeToUse = 2*(diameterDist*10^9).^2*(1.602176634*10^-19);
+        chargeToUse = 2*(diameterDistSim*10^9).^2*(1.602176634*10^-19);
     else
         chargeToUse = bulkCharge;
     end
     
-    for jDiameter = 1:length(diameterDist)
+    for jDiameter = 1:length(diameterDistSim)
 
-        coreDiameterScaled_m = nanocrystalCore_m(sizeIndex)*diameterDist(jDiameter)/ ...
+        coreDiameterScaled_m = nanocrystalCore_m(sizeIndex)*diameterDistSim(jDiameter)/ ...
             nanocrystalSize_m(sizeIndex);
         
         coreVolume = 4/3*pi*(coreDiameterScaled_m/2).^3;
 
-        totalVolume = 4/3*pi*(diameterDist(jDiameter)/2).^3;
+        totalVolume = 4/3*pi*(diameterDistSim(jDiameter)/2).^3;
 
         coreMass = coreVolume*CdSeDensity_kgpm3;
 
@@ -123,19 +133,19 @@ for iSize = 1:length(sizesToUse);
         reducedMassBySize(jDiameter) = coreMass*shellMass/(coreMass + shellMass);
         
         % Get resonant frequncy
-        resonanceBySize_rad(jDiameter) = 1./(diameterDist(jDiameter)/2) * resonantSlope;
+        resonanceBySize_rad(jDiameter) = 1./(diameterDistSim(jDiameter)/2) * resonantSlope;
     end
     
 %     figure; subplot(1,3,1);
-%     plot(diameterDist*10^9, chargeToUse./sqrt(reducedMassBySize)')
+%     plot(diameterDistSim*10^9, chargeToUse./sqrt(reducedMassBySize)')
 %     subplot(1,3,2);
-%     plot(diameterDist*10^9, chargeToUse'./sqrt(reducedMassBySize).*sizeFrequency')
+%     plot(diameterDistSim*10^9, chargeToUse'./sqrt(reducedMassBySize).*sizeFrequency')
 %     subplot(1,3,3);
-%     plot(diameterDist*10^9, reducedMassBySize);
+%     plot(diameterDistSim*10^9, reducedMassBySize);
     
     % Calculate extinction for sphere mixture
     [~, simulatedExtinctionCrossSection] = calculatespheremixtureabsorbtion(frequencyRange_rad, resonanceBySize_rad, ...
-        reducedMassBySize, bulkQF, chargeToUse, nanocrystalNumber(sizeIndex)*sizeFrequency, apertureArea, 1, []);
+        reducedMassBySize, bulkQF, chargeToUse, nanocrystalNumber(sizeIndex)*sizeFrequencySim, apertureArea, 1, []);
     
     figure;
     plot(frequencyRange_rad/2/pi/10^9, measuredExtinctionCurve/10^-21, 'm-'); hold on
@@ -146,47 +156,70 @@ for iSize = 1:length(sizesToUse);
     
     plot(frequencyRange_rad/2/pi/10^9, simulatedExtinctionCrossSection/10^-21, 'g')
     
+    % Choose data to fit
     if fitRealData
         dataToFit = measuredExtinctionCurve;
     else
         dataToFit = simulatedExtinctionCrossSection;
     end
     
-    switch typeOfSolution
+    % Dimensions of dataToFit must match calculateresonantormixtureabsorbtion output
+    % otherwise solver fails quietly
+    if size(dataToFit,2) > size(dataToFit, 1)
+       dataToFit = dataToFit'; 
+    end
+    
+    % Choose sizes and frequency to use in fit
+    switch fitWithSizeType
+        case 'Single'
+            diametersToUse = nanocrystalSize_m(sizeIndex);
+            numberToUse = nanocrystalNumber(sizeIndex);
+            
+        case 'Original'
+            diametersToUse = diameterDistOrig;
+            numberToUse = nanocrystalNumber(sizeIndex)*sizeFrequencyOrig;
+            
+        case 'FullInterp'
+            diametersToUse = diameterDistInterp;
+            numberToUse = nanocrystalNumber(sizeIndex)*sizeFrequencyInterp;
+    end
+        
+    % Set up fit
+    switch typeOfFit
     
         % Use solver for 3 coefficients
         case '3Coeffs'
             % Parameters rescalled to similar ranges
             x0 = [resonantSlope/1000, bulkCharge/sqrt(reducedMass)*10^6, bulkQF];
             
-            lb = [resonantSlope/1000/2 0 1];
+            lb = [resonantSlope/1000/2 0 0];
             ub = [resonantSlope/1000*2 20 20];
             
-            f = @(x)(calculateerror_equalcoefficients(x, dataToFit, diameterDistOrig, ...
-                nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, frequencyRange_rad, 10^21));
+            f = @(x)(calculateerror_equalcoefficients(x, dataToFit, diametersToUse, ...
+                numberToUse, frequencyRange_rad, 10^21));
     
         % Use solver allowing for varying intensity    
         case 'IntensityPerSize'
         %%% Soln values quite sensitive to initial parameter choices
             % Acceptable space deffinetely worth considering...
-        x0 = [resonantSlope/1000, bulkCharge/sqrt(reducedMass)*10^6*ones(1,length(diameterDistOrig)),...
+        x0 = [resonantSlope/1000, bulkCharge/sqrt(reducedMass)*10^6*ones(1,length(diametersToUse)),...
             bulkQF];
 
-        lb = [resonantSlope/1000/2 zeros(1,length(diameterDistOrig)) 1];
-        ub = [resonantSlope/1000*2 20*ones(1,length(diameterDistOrig))  20];
+        lb = [resonantSlope/1000/2 zeros(1,length(diametersToUse)) 0];
+        ub = [resonantSlope/1000*2 20*ones(1,length(diametersToUse))  20];
             
-        f = @(x)(calculateerror_varyingintensity(x, dataToFit, diameterDistOrig, ...
-            nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, frequencyRange_rad, 10^21));
+        f = @(x)(calculateerror_varyingintensity(x, dataToFit, diametersToUse, ...
+            numberToUse, frequencyRange_rad, 10^21));
     
         case 'IntensityFunction'
             
             x0 = [resonantSlope/1000, 0.01, bulkQF];
 
-            lb = [resonantSlope/1000/2 0.001 0.5];
+            lb = [resonantSlope/1000/2 0.001 1];
             ub = [resonantSlope/1000*2 0.5 20];
             
-            f = @(x)(calculateerror_intensityfunction(x, dataToFit, diameterDistOrig, ...
-                nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, frequencyRange_rad, 10^21, typeOfFunction));
+            f = @(x)(calculateerror_intensityfunction(x, dataToFit, diametersToUse, ...
+                numberToUse, frequencyRange_rad, 10^21, typeOfFunction));
     end
     
     options = optimoptions('lsqnonlin','Display','iter', 'FunctionTolerance', 1e-10, ...
@@ -200,10 +233,10 @@ for iSize = 1:length(sizesToUse);
     solution = [solution(1)*1000 solution(2:end-1)/10^6 solution(end)];
     
     % Calculate parameters solved for
-    resonance_rad = 1./(diameterDistOrig/2) * solution(1);
+    resonance_rad = 1./(diametersToUse/2) * solution(1);
     
     % Intensity depends on type of solution
-    switch typeOfSolution
+    switch typeOfFit
         case '3Coeffs'
             intensityValues = solution(2);
             
@@ -215,29 +248,29 @@ for iSize = 1:length(sizesToUse);
             switch typeOfFunction
                 case 'Linear'
                     % Diameter in nm
-                    refSize = diameterDistOrig*10^9;
+                    refSize = diametersToUse*10^9;
 
                 case 'Quadratic'
                     % Area in nm^2
-                    refSize =  4*pi*(diameterDistOrig/2).^2*10^18;
+                    refSize =  4*pi*(diametersToUse/2).^2*10^18;
 
                 case 'Cubic'
                     %volume in nm^3
-                    refSize = 4/3*pi*(diameterDistOrig/2).^3*10^27;
+                    refSize = 4/3*pi*(diametersToUse/2).^3*10^27;
             end
             
-            intensityValues = refSize*solution(2)
+            intensityValues = refSize*solution(2);
     end
     
     % Check predicted cross section
     [~, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRange_rad, resonance_rad, ...
-        intensityValues, solution(end), nanocrystalNumber(sizeIndex)*sizeFrequencyOrig, apertureArea, 1, []);
+        intensityValues, solution(end), numberToUse, []);
     
     plot(frequencyRange_rad/2/pi/10^9, extinctionCrossSection/10^-21, 'r--')
 end
 
 % Creates extinction curve from resonator. Multiple sizes, but all use equal coefficients
-function sse = calculateerror_equalcoefficients(x, extinctionRef, diameters, number, area, ...
+function sse = calculateerror_equalcoefficients(x, extinctionRef, diameters, number, ...
     frequencyRange, conversion)
   
     % For solver
@@ -253,7 +286,7 @@ function sse = calculateerror_equalcoefficients(x, extinctionRef, diameters, num
     resonance_rad = 1./(diameters/2) * x(1);
     
     [~, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRange, resonance_rad, ...
-        x(2), x(3), number, area, 1, []);
+        x(2), x(3), number, []);
 
     % Apply conversion to error to keep it above solver tolerance.
     
@@ -265,7 +298,7 @@ function sse = calculateerror_equalcoefficients(x, extinctionRef, diameters, num
 end
 
 % Creates extinction curve from resonator. Multiple sizes and varying intensity - x(2)
-function sse = calculateerror_varyingintensity(x, extinctionRef, diameters, number, area, ...
+function sse = calculateerror_varyingintensity(x, extinctionRef, diameters, number, ...
     frequencyRange, conversion)
 
     % For solver
@@ -281,14 +314,14 @@ function sse = calculateerror_varyingintensity(x, extinctionRef, diameters, numb
     resonance_rad = 1./(diameters/2) * x(1);
     
     [~, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRange, resonance_rad, ...
-        x(2:end-1), x(end), number, area, 1, []);
+        x(2:end-1), x(end), number, []);
 
     % For lsqnonlin - requires array of differences
     sse = conversion*(extinctionCrossSection-extinctionRef);
 end
 
 % Creates extinction curve from resonator. Multiple sizes and intensity function
-function sse = calculateerror_intensityfunction(x, extinctionRef, diameters, number, area, ...
+function sse = calculateerror_intensityfunction(x, extinctionRef, diameters, number, ...
     frequencyRange, conversion, typeOfFunction)
 
     % For solver
@@ -320,7 +353,7 @@ function sse = calculateerror_intensityfunction(x, extinctionRef, diameters, num
     resonance_rad = 1./(diameters/2) * x(1);
     
     [~, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRange, resonance_rad, ...
-        intensityValues, x(end), number, area, 1, []);
+        intensityValues, x(end), number, []);
     
     % Bottom for lsqnonlin - requires array of differences
     sse = conversion*(extinctionCrossSection-extinctionRef);

@@ -1,5 +1,5 @@
 function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequencyRange_rad, resonance_rad, ...
-        intensity, qualityFactor, number, area, drive, mediumPermitivity)
+        intensity, qualityFactor, number, mediumPermitivity)
 
     % Currently takes multiple sizes with fixed q, but will adapt to take
     % varying q and Q
@@ -32,6 +32,9 @@ function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequen
     
 %     figure; hold on
     
+    % Not reall sure how it cancels, but it does
+    area = 1;
+
     % Calculate resonator power
     for jSize = 1:nResonance
         if intensityVaries
@@ -40,9 +43,10 @@ function [absorbtion, extinction] = calculateresonantormixtureabsorbtion(frequen
            intensityToUse = intensity;
         end
         
+        % Assumes drive is 1, but it cancels for extinction and absorbtion
         power = calculateresonatorpower(frequencyRange_rad, resonance_rad(jSize), intensityToUse, qualityFactor);
         
-        tempEx = power/(0.5*VACCUM_PERMITIVITY*LIGHT_SPEED*drive^2);
+        tempEx = power/(0.5*VACCUM_PERMITIVITY*LIGHT_SPEED);
         
         tempAbs = (1-exp(-tempEx*number(jSize)/area));
         
