@@ -180,6 +180,25 @@ end
 % 
 % sum(slopeMap(:) - slopes(:))
 
+mode1 = slopeMap(:,:,1);
+mode2 = slopeMap(:,:,2);
+mode3 = slopeMap(:,:,3);
+
+figure; hold on;
+[n ,x] = hist(mode2(:)./mode1(:));
+plot(x , n)
+[n ,x] = hist(mode3(:)./mode1(:));
+plot(x , n)
+
+[n ,x] = hist(mode3(:)./mode2(:));
+plot(x , n, ':')
+
+nanocrystal2ndFreqResonance_hz./nanocrystalFreqResonance_hz
+
+nanocrystal3rdFreqResonance_hz./nanocrystalFreqResonance_hz
+
+nanocrystal3rdFreqResonance_hz./nanocrystal2ndFreqResonance_hz
+
 %%
 warning('Adjusted freqs on 1st and 4th')
 nanocrystalFreqResonance_hz = [230 241 175 200 170 165]*10^9;
