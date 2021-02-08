@@ -31,6 +31,11 @@ if useCompleteCurves
     
     data = readmatrix('Ext_13.csv');
     ExCrossSecCurve_m2{6} = interp1(data(:,1)*10^9, data(:,2)*10^-21, curveFrequncy, 'linear', 'extrap');
+    
+    % Set frequency bounds for fitting - 1st mode
+    lowerFreqToFit = [150, NaN NaN, 160, NaN, 115];
+    
+    upperFreqToFit = [240, NaN NaN, 230, NaN, 210];
 else
     % Source intensity
     I_source_mv = [2.92, 2.58, 2.60, 2.33, 1.76, 1.18, 0.69, 0.42, 0.32, 0.34 0.34, 0.29, 0.22]; %mV
