@@ -3,7 +3,7 @@
 useCompleteCurves = 1;
 
 % Extinction cross sections curves stored in cell array
-ExCrossSecCurve_m2 = cell(6,1);
+ExCrossSecCurve_m2 = cell(6,2);
 
 if useCompleteCurves
     interpSpacing = 5;
@@ -21,26 +21,34 @@ if useCompleteCurves
     I_trans_13_mv = interp1(data(:,1)*10^9, data(:,2), curveFrequncy, 'linear', 'extrap');
     
     data = readmatrix('Ext_8.csv');
-    ExCrossSecCurve_m2{1} = interp1(data(:,1)*10^9, data(:,2)*10^-21, curveFrequncy, 'linear', 'extrap');
+    ExCrossSecCurve_m2{1,1} = data(:,1)*10^9;
+    ExCrossSecCurve_m2{1,2} = data(:,2)*10^-21;
     
     data = readmatrix('Ext_10p1.csv');
-    ExCrossSecCurve_m2{3} = interp1(data(:,1)*10^9, data(:,2)*10^-21, curveFrequncy, 'linear', 'extrap');
+    ExCrossSecCurve_m2{3,1} = data(:,1)*10^9;
+    ExCrossSecCurve_m2{3,2} = data(:,2)*10^-21;
     
     data = readmatrix('Ext_10p4.csv');
-    ExCrossSecCurve_m2{4} = interp1(data(:,1)*10^9, data(:,2)*10^-21, curveFrequncy, 'linear', 'extrap');
-    
+    ExCrossSecCurve_m2{4,1} = data(:,1)*10^9;
+    ExCrossSecCurve_m2{4,2} = data(:,2)*10^-21;
+
     data = readmatrix('Ext_13.csv');
-    ExCrossSecCurve_m2{6} = interp1(data(:,1)*10^9, data(:,2)*10^-21, curveFrequncy, 'linear', 'extrap');
-    
+    ExCrossSecCurve_m2{6,1} = data(:,1)*10^9;
+    ExCrossSecCurve_m2{6,2} = data(:,2)*10^-21;
+
     % Set frequency bounds for fitting - 1st mode
     %%% All multiuples of 5
-    lowerFreqToFit_1st = [150, NaN NaN, 150, NaN, 110];
+    lowerFreqToFit_1st = [100, NaN NaN, 160, NaN, 120];
     
-    upperFreqToFit_1st = [240, NaN NaN, 230, NaN, 210];
+    upperFreqToFit_1st = [450, NaN NaN, 500, NaN, 400];
+%     
+    lowerFreqToFit_2nd = [NaN, NaN NaN, NaN, NaN, 340];
     
-    lowerFreqToFit_2nd = [NaN, NaN NaN, 275, NaN, 200];
-    
-    upperFreqToFit_2nd = [NaN, NaN NaN, 400, NaN, 310];
+    upperFreqToFit_2nd = [NaN, NaN NaN, NaN, NaN, 400];
+
+%     lowerFreqToFit_1st = [150, NaN NaN, 100, NaN, 100];
+%     
+%     upperFreqToFit_1st = [240, NaN NaN, 500, NaN, 400];
 else
     % Source intensity
     I_source_mv = [2.92, 2.58, 2.60, 2.33, 1.76, 1.18, 0.69, 0.42, 0.32, 0.34 0.34, 0.29, 0.22]; %mV

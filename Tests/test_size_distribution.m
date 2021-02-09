@@ -101,3 +101,42 @@ for iDist = 1:length(sizesWithDists)
 %     subplot(1,3,3)
 %     plot(newBins*10^9, newCounts, 'd-');
 end
+
+%% Look at core ratio distributions
+% Very funky, not linear
+
+figure; hold on
+
+for iDist = 1:length(sizesWithDists)
+    sizeIndex = sizesWithDists(iDist);
+    
+    % Plot course distribution
+    diameterDist = nanocrystalSizeDist{sizeIndex, 1};
+    
+    countDist = nanocrystalSizeDist{sizeIndex, 2};
+    
+    coreDiameterScaled_m = nanocrystalCore_m(sizeIndex).*diameterDist/ ...
+            nanocrystalSize_m(sizeIndex);
+        
+    coreVolume = 4/3*pi*(coreDiameterScaled_m/2).^3;
+
+    totalVolume = 4/3*pi*(diameterDist/2).^3;
+    
+    volumeRatio = zeros(length(diameterDist), length(diameterDist));
+    
+    volumeRatioCounts = zeros(length(diameterDist), length(diameterDist));
+    
+    for jRatio = 1:length(diameterDist)
+        volumeRatio(jRatio,:) = coreVolume(jRatio)./totalVolume;
+        
+        volumeRatioCounts(jRatio,:) = countDist(jRatio).*countDist/sum(countDist);
+    end
+    
+    [volumeRatio, inds] = sort(volumeRatio(:));
+    
+    volumeRatio(volumeRatio > 1) = 1;
+    
+    plot(volumeRatio, volumeRatioCounts(inds))
+    
+    %plot(coreVolume./totalVolume, countDist);
+end

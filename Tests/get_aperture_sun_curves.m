@@ -20,7 +20,13 @@ sizesToUse = [1 4 6];
 numberSpheres = nanocrystalNumber(sizesToUse);
 %numberSpheres = fliplr(numberSpheres);
 
-apertureArea = ExCrossSecCurve_m2{sizesToUse(3)}*-numberSpheres(3)./log(I_trans_13_mv./I_source_mv);
+ExCurve1 = interp1(ExCrossSecCurve_m2{sizesToUse(1),1}, ExCrossSecCurve_m2{sizesToUse(1),2}, curveFrequncy, 'linear', 'extrap');
+
+ExCurve2 = interp1(ExCrossSecCurve_m2{sizesToUse(2),1}, ExCrossSecCurve_m2{sizesToUse(2),2}, curveFrequncy, 'linear', 'extrap');
+
+ExCurve3 = interp1(ExCrossSecCurve_m2{sizesToUse(3),1}, ExCrossSecCurve_m2{sizesToUse(3),2}, curveFrequncy, 'linear', 'extrap');
+
+apertureArea = ExCurve3*-numberSpheres(3)./log(I_trans_13_mv./I_source_mv);
 
 %areaToUse = find(curveFrequncy/10^9 > 120 & curveFrequncy/10^9 < 230);
 areaToUse = find((I_source_mv-I_trans_13_mv)./I_source_mv > 0.25 & I_source_mv > 0.5);
@@ -31,13 +37,13 @@ avgArea = mean(apertureArea(areaToUse))
 apertureRadius = sqrt(avgArea/pi)*1000
 
 %Calc intensity for other sizes
-I_trans_10p4_calc = exp(ExCrossSecCurve_m2{sizesToUse(2)}*-numberSpheres(2)/avgArea) .* I_source_mv;
+I_trans_10p4_calc = exp(ExCurve2*-numberSpheres(2)/avgArea) .* I_source_mv;
 
-I_trans_8_calc = exp(ExCrossSecCurve_m2{sizesToUse(1)}*-numberSpheres(1)/avgArea) .* I_source_mv;
+I_trans_8_calc = exp(ExCurve1*-numberSpheres(1)/avgArea) .* I_source_mv;
 
 
 % Get intensity and exCross for 13 given avg area to test
-I_trans_13_calc = exp(ExCrossSecCurve_m2{sizesToUse(3)}*-numberSpheres(3)/avgArea) .* I_source_mv;
+I_trans_13_calc = exp(ExCurve3*-numberSpheres(3)/avgArea) .* I_source_mv;
 
 exCrossSecCurve_13_calc = -avgArea/numberSpheres(3).*...
         log(I_trans_13_mv./I_source_mv);
@@ -81,13 +87,13 @@ ylabel('Aoertyre area (mm2)')
 
 subplot(1,3,3); hold on;
 
-plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizesToUse(3)}/10^-21, 'r')
+plot(curveFrequncy/10^9, ExCurve3/10^-21, 'r')
 
 plot(curveFrequncy/10^9, exCrossSecCurve_13_calc/10^-21, 'rx')
 
-plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizesToUse(2)}/10^-21, '-m')
+plot(curveFrequncy/10^9, ExCurve2/10^-21, '-m')
 
-plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizesToUse(1)}/10^-21, '-b')
+plot(curveFrequncy/10^9, ExCurve1/10^-21, '-b')
 
 title('Extinction cross section')
 legend({'13 nm meas' '13 nm calc', '10.4 meas', '8 nm meas'})

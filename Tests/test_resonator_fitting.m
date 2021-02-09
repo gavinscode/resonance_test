@@ -14,33 +14,33 @@ simWithInterpSizeDist = 1; % If not set, uses original distribution for simulati
 
 varyCharge = 0; % in simulation, using quadratic model?
 
-sizeSteps = 1/10^9; % in m
+sizeSteps = 0.1/10^9; % in m
 
 fitRealData = 1; % if not set, fits simulated data
 
 numberOfModes = 3;
 
 % fitWithSizeType = 'Single';
-fitWithSizeType = 'Original';
-% fitWithSizeType = 'FullInterp';
+% fitWithSizeType = 'Original';
+fitWithSizeType = 'FullInterp';
 
-typeOfFit = '3Coeffs';
+% typeOfFit = '3Coeffs'; % Has fixed charge
 
 % typeOfFit = 'IntensityPerSize';
-    constrainToIncreasing = 0; %fmincon will be used with linear inequality
+    constrainToIncreasing = 0; %if set, fmincon will be used with linear inequality
 
 typeOfFit = 'IntensityFunction';
-%     typeOfFunction = 'Linear';
-    typeOfFunction = 'Quadratic';
+    typeOfFunction = 'Linear';
+%     typeOfFunction = 'Quadratic';
 %     typeOfFunction = 'Cubic';
 
-useHandFreqLimits = 0;
+useHandFreqLimits = 1;
 
 if ~useHandFreqLimits
     frequencyRange_rad = (100:5:400)*10^9*2*pi;
 end
 
-frequencyRangePlot_rad = (100:1:400)*10^9*2*pi;
+frequencyRangePlot_rad = (50:1:500)*10^9*2*pi;
 
 % First do for each indvidually and store data as we go
 diameterDistGroup = cell(nSize,1);
@@ -49,9 +49,6 @@ numberGroup = cell(nSize,1);
 bulkQFGroup = zeros(nSize,1);
 bulkIntensityGroup = zeros(nSize,1);
 bulkResonantSlopeGroup = zeros(nSize,1);
-
-% will only do group fitting on three param options.
-parametersToUseGroup = zeros(nSize,3);
 
 dataToFitGroup = cell(nSize,1);
 frequencyGroup = cell(nSize,1);
@@ -84,12 +81,17 @@ for iSize = 1:nSize
     sizeFrequencySim = countDistSim/sum(countDistSim);
     
     if useHandFreqLimits
-        frequencyRange_rad = (lowerFreqToFit_1st(sizeIndex):5:upperFreqToFit_1st(sizeIndex))*10^9*2*pi;
+%         if sizeIndex == 6
+%             frequencyRange_rad = [(lowerFreqToFit_1st(sizeIndex):5:upperFreqToFit_1st(sizeIndex)) ...
+%                 (lowerFreqToFit_2nd(sizeIndex):5:upperFreqToFit_2nd(sizeIndex))]*10^9*2*pi;
+%         else
+            frequencyRange_rad = [(lowerFreqToFit_1st(sizeIndex):5:upperFreqToFit_1st(sizeIndex))]*10^9*2*pi;
+%         end
     end
-    
-    measuredExtinctionCurve = ExCrossSecCurve_m2{sizeIndex};
+
     % Interpolate to currenct frequncies
-    measuredExtinctionCurve = interp1(curveFrequncy*2*pi, measuredExtinctionCurve, frequencyRange_rad, 'linear', 'extrap');
+    measuredExtinctionCurve = interp1(ExCrossSecCurve_m2{sizeIndex,1}*2*pi, ExCrossSecCurve_m2{sizeIndex,2},...
+        frequencyRange_rad, 'linear', 'extrap');
     
     measuredExtinctionCurve(measuredExtinctionCurve < 0) = 0;
     
@@ -230,11 +232,11 @@ for iSize = 1:nSize
     frequencyGroup{iSize} = frequencyRange_rad;
     
     % Limit to number of modes with indicated peaks, otherwise top mode floats
-    if length(slopeMult) + 1 < numberOfModes
-        modesToTest = length(slopeMult) + 1;
-    else
+%     if length(slopeMult) + 1 < numberOfModes
+%         modesToTest = length(slopeMult) + 1;
+%     else
         modesToTest = numberOfModes;
-    end
+%     end
     
     switch modesToTest
         
@@ -246,16 +248,16 @@ for iSize = 1:nSize
             slopeRef = [];
             
         case 2
-            %%% Using limits from slop map tester...
+            %%% Using limits from slope map tester...
             slopeMultX0 = 1.6;
             slopeMultLb = 1.4;
-            slopeMultUb = 2.0;
+            slopeMultUb = 2.1;
             
             slopeRef = [2];
         case 3
-            slopeMultX0 = [1.6 2.8];
-            slopeMultLb = [1.4 2.3];
-            slopeMultUb = [2.0 3.1];
+            slopeMultX0 = [1.5 2.4];
+            slopeMultLb = [1.4 2.0];
+            slopeMultUb = [2.1 2.8];
             
             slopeRef = [2 2];
     end
@@ -310,10 +312,12 @@ for iSize = 1:nSize
 %             lb = [resonantSlope/1000/2 0.001 1];
 %             ub = [resonantSlope/1000*2 0.5 20];
             
-            x0 = [resonantSlope/1000, slopeMultX0, 0.01, bulkQF*ones(1, modesToTest)];
+%             x0 = [resonantSlope/1000, slopeMultX0, 0.01, bulkQF*ones(1, modesToTest)];
                   
-            lb = [resonantSlope/1000/2, slopeMultLb, 0.001, ones(1, modesToTest)];
-            ub = [resonantSlope/1000*2, slopeMultUb, 0.5, 20*ones(1, modesToTest)];
+            x0 = [7.5, slopeMultX0, 0.004, [3 3 20]];
+            
+            lb = [resonantSlope/1000/2, slopeMultLb, 0.001, 0*ones(1, modesToTest)];
+            ub = [resonantSlope/1000*2, slopeMultUb, 0.5, 30*ones(1, modesToTest)];
             
             positionRef = [1 slopeRef 3 4*ones(1, modesToTest)];
             
@@ -335,11 +339,6 @@ for iSize = 1:nSize
     end
     
     solution - x0
-    
-    %%% Need to remake...
-%     if length(solution) == 3
-%         parametersToUseGroup(iSize, :) = solution;
-%     end
     
     % Unpack solution
     slopeInds = find(positionRef == 1);
@@ -387,7 +386,6 @@ for iSize = 1:nSize
     end
     
     % Check predicted cross section for each mode
-    
     abosrbtion = zeros(length(frequencyRangePlot_rad),1);
     
     % Do for each mode and combine absorbtions
@@ -408,184 +406,98 @@ for iSize = 1:nSize
 end
 
 %% Run on combined!
-x0 = mean(parametersToUseGroup);
+if ~strcmp(typeOfFit, 'IntensityFunction')
+    error('Only does combined calculation using intensity function')
+end
 
-lb = [x0(1)/2 0.001 1];
-ub = [x0(1)*2 0.5 20];
+% Just use values from last...
+
+% x0 = mean(parametersToUseGroup);
+% 
+% lb = [x0(1)/2 0.001 1];
+% ub = [x0(1)*2 0.5 20];
 
 f = @(x)(calculateerror_intensityfunction(x, dataToFitGroup, diameterDistGroup, ...
-    numberGroup, frequencyGroup, 10^21, typeOfFunction));
+    numberGroup, frequencyGroup, typeOfFunction, positionRef));
 
 options = optimoptions('lsqnonlin','Display','iter', 'FunctionTolerance', 1e-10, ...
     'MaxFunctionEvaluations', 10^6, 'MaxIterations', 10^4);
 
-solution = lsqnonlin(f, x0, lb, ub, options)
+solution = lsqnonlin(f, solution, lb, ub, options)
 
 solution - x0
-    
-parametersToUse = solution;
+   
+%%
+% solution = [7.5, 1.5, 2.4, 0.004, 3, 3.5, 25] % interesting on quadratic w/ #10 at 5
+% solution = [7.5, 1.5, 2.3, 0.17, 4, 6, 10] % interesting on linear w/ #10 at 0.1
 
-solution = [solution(1)*1000 solution(2:end-1)/10^6 solution(end)];
+% Unpack solution
+slopeInds = find(positionRef == 1);
+slopeMultInds = find(positionRef == 2);
+chargeInds = find(positionRef == 3);
+QFInds = find(positionRef == 4); 
+
+solvedSlope = solution(slopeInds)*1000;
+
+solvedSlopeMult = solution(slopeMultInds);
+
+solvedCharges = solution(chargeInds)/10^6;
+
+solvedQFs = solution(QFInds);
 
 figure;
 
-mode1Data = cell(nSize,1);
-
 %Plot for each size
 for iSize = 1:nSize
-    subplot(2,nSize,iSize); hold on
+    subplot(1,nSize,iSize); hold on
     
     diametersToUse = diameterDistGroup{iSize};
 
-    resonance_rad = 1./(diametersToUse/2) * solution(1);
-    
-    switch typeOfFit
-        case '3Coeffs'
-            intensityValues = solution(2);
-            
-        case 'IntensityPerSize'
-            intensityValues = solution(2:end-1);
-            
-        case 'IntensityFunction'
-            
-            switch typeOfFunction
-                case 'Linear'
-                    % Diameter in nm
-                    refSize = diametersToUse*10^9;
+    resonance_rad = 1./(diametersToUse/2) * solvedSlope;
+    resonanceBase_rad = resonance_rad;
+     
+    switch typeOfFunction
+        case 'Linear'
+            % Diameter in nm
+            refSize = diametersToUse*10^9;
 
-                case 'Quadratic'
-                    % Area in nm^2
-                    refSize =  4*pi*(diametersToUse/2).^2*10^18;
+        case 'Quadratic'
+            % Area in nm^2
+            refSize =  4*pi*(diametersToUse/2).^2*10^18;
 
-                case 'Cubic'
-                    %volume in nm^3
-                    refSize = 4/3*pi*(diametersToUse/2).^3*10^27;
-            end
-            
-            intensityValues = refSize*solution(2);
+        case 'Cubic'
+            %volume in nm^3
+            refSize = 4/3*pi*(diametersToUse/2).^3*10^27;
     end
+
+    intensityValues = refSize*solvedCharges;
     
     % Check predicted cross section
-    [absorbtion, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
-        intensityValues, solution(end), numberGroup{iSize}, []);
+    abosrbtion = zeros(length(frequencyRangePlot_rad),1);
     
-    mode1Data{iSize} = extinctionCrossSection;
+    % Do for each mode and combine absorbtions
+    for iMode = 1:modesToTest
+        if iMode > 1
+            resonance_rad = resonanceBase_rad*solvedSlopeMult(iMode-1);
+        end
+        
+        tempAbs = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
+            intensityValues, solvedQFs(iMode), numberGroup{iSize}, []);
+        
+        abosrbtion = 1 - (1 - abosrbtion) .* (1 - tempAbs);
+    end
+
+    extinctionCrossSection = -1/sum(numberToUse).*log(1-abosrbtion);
+    
+%     [absorbtion, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
+%         intensityValues, solution(end), numberGroup{iSize}, []);
     
     plot(frequencyRangePlot_rad/2/pi/10^9, extinctionCrossSection/10^-21, 'r--')
     
-    sizeIndex = sizesToUse(iSize);
+    plot(frequencyGroup{iSize}/2/pi/10^9, dataToFitGroup{iSize}/10^-21, 'm')
     
-    % Get full extinction curve
-    measuredExtinctionCurve = interp1(curveFrequncy*2*pi, ExCrossSecCurve_m2{sizeIndex}, frequencyRangePlot_rad, 'linear', 'extrap');
-    
-    plot(frequencyRangePlot_rad/2/pi/10^9, measuredExtinctionCurve/10^-21, 'm-'); hold on
-    
-    % Forgot to take difference of extinction properly...
-    measAbsCurve = (1-exp(-measuredExtinctionCurve*nanocrystalNumber(sizeIndex)/1));
-    
-    diffAbsCurve = 1 - (1 - measAbsCurve)./(1 - absorbtion');
-    
-    diffExtCurve = -1/nanocrystalNumber(sizeIndex).*log(1-diffAbsCurve);
-    
-    % Difference curve
-    plot(frequencyRangePlot_rad/2/pi/10^9, (diffExtCurve)/10^-21, 'b-'); hold on
-    
-    % Set up offset curve and frequncies of second peak
-    if useHandFreqLimits
-        frequencyRange_rad = (lowerFreqToFit_2nd(sizeIndex):5:upperFreqToFit_2nd(sizeIndex))*10^9*2*pi;
-    end
-    
-    [tempAbsCalc] = calculateresonantormixtureabsorbtion(frequencyRange_rad, resonance_rad, ...
-        intensityValues, solution(end), numberGroup{iSize}, []);
-    
-    tempMeasEx = interp1(curveFrequncy*2*pi, ExCrossSecCurve_m2{sizeIndex}, frequencyRange_rad, 'linear', 'extrap');
-    
-    % Get extinction difference properly
-    measAbsCurve = (1-exp(-tempMeasEx*nanocrystalNumber(sizeIndex)/1));
-    
-    diffAbsCurve = 1 - (1 - measAbsCurve)./(1 - tempAbsCalc');
-    
-    diffExtCurve = -1/nanocrystalNumber(sizeIndex).*log(1-diffAbsCurve);
-    
-    dataToFitGroup{iSize} = diffExtCurve';
-   
-    frequencyGroup{iSize} = frequencyRange_rad;
 end
 
-%% Do for 2nd mode
-%%% Subtraction approach didn't work so well, as fitting remainder
-%%% influences main mode - need to do both in parallel
-
-x0 = parametersToUse;
-
-% Shift up resonant slope by measured ratios
-x0(1) = x0(1)*nanmean(nanocrystal2ndFreqResonance_hz(sizesToUse)./nanocrystalFreqResonance_hz(sizesToUse));
-
-lb = [x0(1)/2 0.001 1];
-ub = [x0(1)*2 0.5 20];
-
-f = @(x)(calculateerror_intensityfunction(x, dataToFitGroup, diameterDistGroup, ...
-    numberGroup, frequencyGroup, 10^21, typeOfFunction));
-
-options = optimoptions('lsqnonlin','Display','iter', 'FunctionTolerance', 1e-10, ...
-    'MaxFunctionEvaluations', 10^6, 'MaxIterations', 10^4);
-
-solution = lsqnonlin(f, x0, lb, ub, options)
-
-solution - x0
-    
-solution = [solution(1)*1000 solution(2:end-1)/10^6 solution(end)];
-
-for iSize = 1:nSize
-    subplot(2,nSize,iSize+nSize); hold on
-    
-    diametersToUse = diameterDistGroup{iSize};
-
-    resonance_rad = 1./(diametersToUse/2) * solution(1);
-    
-    switch typeOfFit
-        case '3Coeffs'
-            intensityValues = solution(2);
-            
-        case 'IntensityPerSize'
-            intensityValues = solution(2:end-1);
-            
-        case 'IntensityFunction'
-            
-            switch typeOfFunction
-                case 'Linear'
-                    % Diameter in nm
-                    refSize = diametersToUse*10^9;
-
-                case 'Quadratic'
-                    % Area in nm^2
-                    refSize =  4*pi*(diametersToUse/2).^2*10^18;
-
-                case 'Cubic'
-                    %volume in nm^3
-                    refSize = 4/3*pi*(diametersToUse/2).^3*10^27;
-            end
-            
-            intensityValues = refSize*solution(2);
-    end
-    
-    % Check predicted cross section
-    [~, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
-        intensityValues, solution(end), numberGroup{iSize}, []);
-    
-    plot(frequencyRangePlot_rad/2/pi/10^9, (extinctionCrossSection)/10^-21, 'r--')
-    
-    sizeIndex = sizesToUse(iSize);
-    
-    plot(frequencyRangePlot_rad/2/pi/10^9, (extinctionCrossSection+mode1Data{iSize})/10^-21, 'r:')
-    
-    plot(frequencyGroup{iSize}/2/pi/10^9, dataToFitGroup{iSize}/10^-21, 'b')
-     
-    % Get full extinction curve
-    measuredExtinctionCurve = interp1(curveFrequncy*2*pi, ExCrossSecCurve_m2{sizeIndex}, frequencyRangePlot_rad, 'linear', 'extrap');
-    
-    plot(frequencyRangePlot_rad/2/pi/10^9, measuredExtinctionCurve/10^-21, 'm-'); hold on
-end
 %%
 % Calculates extinction curve difference from resonator. Multiple sizes, but all use equal coefficients
 function sse = calculateerror_equalcoefficients(x, extinctionRef, diameters, number, ...
@@ -749,7 +661,7 @@ function sse = calculateerror_intensityfunction(x, extinctionRef, diameters, num
         resonance_rad = 1./(diameterToUse/2) * testSlope;
         resonanceBase_rad = resonance_rad;
         
-        abosrbtion = zeros(length(frequencyRange),1);
+        abosrbtion = zeros(length(freqToUse),1);
     
         % Do for each mode and combine absorbtions
         for iMode = 1:numberOfModes
