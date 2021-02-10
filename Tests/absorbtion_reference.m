@@ -40,7 +40,7 @@ if useCompleteCurves
     %%% All multiuples of 5
     lowerFreqToFit_1st = [100, NaN NaN, 160, NaN, 120];
     
-    upperFreqToFit_1st = [450, NaN NaN, 500, NaN, 400];
+    upperFreqToFit_1st = [500, NaN NaN, 500, NaN, 400];
 %     
     lowerFreqToFit_2nd = [NaN, NaN NaN, NaN, NaN, 340];
     

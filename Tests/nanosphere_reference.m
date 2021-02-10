@@ -18,8 +18,8 @@ freqResolution_Ghz = [50 10 10 50 10 50];
 % Using plot measurments for 8, 8.4 (missing in text), 10.4
 % nanocrystalFreqResonance_hz = [198 241 175 221 170 165]*10^9;
 
-% Using text values for all but 8.4 (typo in text)
-nanocrystalFreqResonance_hz = [210 241 175 200 170 165]*10^9;
+% Using text values for all but 8 (incorrectly labelled) and 8.4 (typo in text)
+nanocrystalFreqResonance_hz = [265 241 175 200 170 165]*10^9; %210
 
 nanocrystal2ndFreqResonance_hz = [380  NaN 322 360 271 250]*10^9;
 

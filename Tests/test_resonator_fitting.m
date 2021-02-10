@@ -6,7 +6,7 @@ nanosphere_reference
 absorbtion_reference
 
 % Start with sizes measured on 50 GHz Bandwidth
-sizesToUse = [4 6]; [1 4 6];    
+sizesToUse = 1; [4 6]; [1 4 6];    
 
 nSize = length(sizesToUse);
 

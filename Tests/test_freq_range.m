@@ -9,11 +9,11 @@ absorbtion_reference
 sizesToUse = [1 4 6];    
 
 % Actual max mode number is -1
-modesToTest = 3;
+modesToTest = 5;
 
 modeCols = lines(modesToTest);
 
-modeScale = [0.8 1 1.2];
+modeScale = [0.8 1 1.2 1.5 1.7];
 
 sizeSteps = 0.5/10^9; % in m
 
@@ -99,9 +99,9 @@ for iSize = 1:length(sizesToUse)
     
     subplot(1, length(sizesToUse), iSize); hold on
     
-    plot(curveFrequncy/10^9, ExCrossSecCurve_m2{sizeIndex}/10^-21, 'm-x')
+    plot(ExCrossSecCurve_m2{sizeIndex,1}/10^9, ExCrossSecCurve_m2{sizeIndex,2}/10^-21, 'm-x')
     
-    meanCurve = mean(ExCrossSecCurve_m2{sizeIndex}/10^-21);
+    meanCurve = mean(ExCrossSecCurve_m2{sizeIndex,2}/10^-21);
     
     ylabel('Extinciton')
 
@@ -176,32 +176,66 @@ for jLong = 1:length(testLong)
     end
 end  
 
-% slopes = calculateSlopeMap(testLong, testTrans, modesToTest, nanocrystalSize_m(sizesToUse(end)), nanocrystalSize_m(sizesToUse(1)));
-% 
-% sum(slopeMap(:) - slopes(:))
+%% Correct for errors on maps
+    %%% Should also solve in resonance calcualte sometime...
+close all
 
-mode1 = slopeMap(:,:,1);
-mode2 = slopeMap(:,:,2);
-mode3 = slopeMap(:,:,3);
+figure;
 
-figure; hold on;
-[n ,x] = hist(mode2(:)./mode1(:));
-plot(x , n)
-[n ,x] = hist(mode3(:)./mode1(:));
-plot(x , n)
+[xMap, yMap] = meshgrid(1:size(slopeMap,1), 1:size(slopeMap,2));
 
-[n ,x] = hist(mode3(:)./mode2(:));
-plot(x , n, ':')
+for iMode = 1:modesToTest
+    subplot(3,modesToTest,iMode)
+    imshow(slopeMap(:,:,iMode)/max(slopeMap(:))); hold on
+    
+    tempMap = slopeMap(:,:,iMode);
+    
+    gradientMap = abs(diff(slopeMap(:,:,iMode)));
+    
+    % Find problem points with high gradident
+    gradientInds = find(gradientMap > 1000);
+    [gX, gY] = ind2sub(size(gradientMap), gradientInds);
+    
+    [imageInds] = sub2ind(size(tempMap), gX+1, gY);
+    [iX, iY] = ind2sub(size(tempMap), imageInds);
+    plot(iY, iX, 'rx')
+    
+    subplot(3,modesToTest,iMode+modesToTest); 
+    imshow(gradientMap/max(gradientMap(:))); hold on
+    plot(gY, gX, 'rx')
+    
+    if ~isempty(gradientInds)
+        % Interpolate new values
+            % Note, half values are ok and just on down edge of gradient
+            % interp should still be ok  
+            
+        % Remove inds to interpolate from map inds
+        %%% XY flipped here
+        mapInds = sub2ind(size(tempMap), yMap, xMap);
+        
+        mapInds(imageInds) = [];
+            
+        %%% Coords not flipped here
+        interpVals = scatteredInterpolant(xMap(mapInds)', yMap(mapInds)', tempMap(mapInds)');
+        
+        %%% Coords flipped here
+            %%% wtf do they need flipping if it's not an imshow call?
+        newVals = interpVals(iY, iX);
+        
+        %newVals - tempMap(imageInds)
 
-nanocrystal2ndFreqResonance_hz./nanocrystalFreqResonance_hz
+        tempMap(imageInds) = newVals;
 
-nanocrystal3rdFreqResonance_hz./nanocrystalFreqResonance_hz
-
-nanocrystal3rdFreqResonance_hz./nanocrystal2ndFreqResonance_hz
+        subplot(3,modesToTest,iMode+modesToTest*2);
+        imshow(tempMap/max(slopeMap(:))); hold on
+        
+        slopeMap(:,:,iMode) = tempMap;
+    end
+end
 
 %%
 warning('Adjusted freqs on 1st and 4th')
-nanocrystalFreqResonance_hz = [230 241 175 200 170 165]*10^9;
+nanocrystalFreqResonance_hz = [265 241 175 200 170 165]*10^9;
 
 figure;
 
@@ -265,3 +299,38 @@ for iMode = 1:modesToTest
     end
     
 end
+
+%% Test slope ratios
+
+close all
+
+figure; hold on;
+
+testLevels = [0 1.98, 2.5, 3.1, 3.8];
+
+for iMode = 2:modesToTest
+    subplot(2,modesToTest,iMode);
+    
+    highSlope = slopeMap(:,:,iMode);
+    
+    firstSlope = slopeMap(:,:,1);
+    
+    slopeRatio = highSlope;
+    
+    slopeRatio(:) = highSlope(:)./firstSlope(:);
+    
+    imshow((slopeRatio-min(slopeRatio(:)))./(max(slopeRatio(:))-min(slopeRatio(:))))
+
+    M = contour(flipud(slopeRatio), testLevels(iMode)*[1 1]);
+    
+    subplot(2,modesToTest,iMode + modesToTest);
+    [n ,x] = hist(slopeRatio(:),20);
+    plot(x , n)
+
+end
+nanocrystal2ndFreqResonance_hz./nanocrystalFreqResonance_hz
+
+nanocrystal3rdFreqResonance_hz./nanocrystalFreqResonance_hz
+
+nanocrystal3rdFreqResonance_hz./nanocrystal2ndFreqResonance_hz
+
