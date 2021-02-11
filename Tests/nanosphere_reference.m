@@ -19,7 +19,7 @@ freqResolution_Ghz = [50 10 10 50 10 50];
 % nanocrystalFreqResonance_hz = [198 241 175 221 170 165]*10^9;
 
 % Using text values for all but 8 (incorrectly labelled) and 8.4 (typo in text)
-nanocrystalFreqResonance_hz = [265 241 175 200 170 165]*10^9; %210
+nanocrystalFreqResonance_hz = [265 241 175 200 170 165]*10^9; %210 %265
 
 nanocrystal2ndFreqResonance_hz = [380  NaN 322 360 271 250]*10^9;
 
@@ -50,7 +50,7 @@ nanocrystalSizeDist{1,1} = [5.05 6.34 7.54 8.83 10.16 11.46]*10^-9; %bin center 
 nanocrystalSizeDist{1,2} = [2 11 20 9 6 2]; %count
 
 nanocrystalSizeDist{4,1} = [5.44 7.26 9.12 10.98 12.70 14.56]*10^-9;
-warning('Adjusted final value down to same ratio as small')
+% warning('Adjusted final value down to same ratio as small')
 nanocrystalSizeDist{4,2} = [2 9 18 16 5 5]; % 18*0.1 %5
 
 nanocrystalSizeDist{6,1} = [6.66 10.25 13.85 17.29 20.72]*10^-9;

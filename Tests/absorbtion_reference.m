@@ -35,20 +35,6 @@ if useCompleteCurves
     data = readmatrix('Ext_13.csv');
     ExCrossSecCurve_m2{6,1} = data(:,1)*10^9;
     ExCrossSecCurve_m2{6,2} = data(:,2)*10^-21;
-
-    % Set frequency bounds for fitting - 1st mode
-    %%% All multiuples of 5
-    lowerFreqToFit_1st = [100, NaN NaN, 160, NaN, 120];
-    
-    upperFreqToFit_1st = [500, NaN NaN, 500, NaN, 400];
-%     
-    lowerFreqToFit_2nd = [NaN, NaN NaN, NaN, NaN, 340];
-    
-    upperFreqToFit_2nd = [NaN, NaN NaN, NaN, NaN, 400];
-
-%     lowerFreqToFit_1st = [150, NaN NaN, 100, NaN, 100];
-%     
-%     upperFreqToFit_1st = [240, NaN NaN, 500, NaN, 400];
 else
     % Source intensity
     I_source_mv = [2.92, 2.58, 2.60, 2.33, 1.76, 1.18, 0.69, 0.42, 0.32, 0.34 0.34, 0.29, 0.22]; %mV

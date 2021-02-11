@@ -34,7 +34,7 @@ typeOfFit = 'IntensityFunction';
 %     typeOfFunction = 'Quadratic';
 %     typeOfFunction = 'Cubic';
 
-useHandFreqLimits = 1;
+useHandFreqLimits = 0;
 
 if ~useHandFreqLimits
     frequencyRange_rad = (100:5:400)*10^9*2*pi;
@@ -135,7 +135,7 @@ for iSize = 1:nSize
         reducedMass, bulkQF, bulkCharge, nanocrystalNumber(sizeIndex), apertureArea, 1, []);
     
     [~, testExtinction] = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
-        bulkCharge/sqrt(reducedMass), bulkQF, nanocrystalNumber(sizeIndex), []);
+        bulkCharge/sqrt(reducedMass), bulkQF, nanocrystalNumber(sizeIndex), 1, []);
     
     % Store for group fitting
     bulkQFGroup(iSize) = bulkQF;
@@ -325,7 +325,6 @@ for iSize = 1:nSize
                 numberToUse, frequencyRange_rad, typeOfFunction, positionRef));
     end
 
-    
     % Use lower bound at zero for all
     if constrainToIncreasing
         solution = fmincon(f, x0, A, b, [], [], lb, ub)
@@ -393,6 +392,8 @@ for iSize = 1:nSize
         if iMode > 1
             resonance_rad = resonanceBase_rad*solvedSlopeMult(iMode-1);
         end
+        
+        error('Just add extinction per mode')
         
         tempAbs = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
             intensityValues, solvedQFs(iMode), numberToUse, []);
@@ -481,6 +482,7 @@ for iSize = 1:nSize
             resonance_rad = resonanceBase_rad*solvedSlopeMult(iMode-1);
         end
         
+        error('Just add extinction per mode')
         tempAbs = calculateresonantormixtureabsorbtion(frequencyRangePlot_rad, resonance_rad, ...
             intensityValues, solvedQFs(iMode), numberGroup{iSize}, []);
         
@@ -541,6 +543,7 @@ function sse = calculateerror_equalcoefficients(x, extinctionRef, diameters, num
             resonance_rad = resonanceBase_rad*testSlopeMult(iMode-1);
         end
         
+        error('Just add extinction per mode')
         tempAbs = calculateresonantormixtureabsorbtion(frequencyRange, resonance_rad, ...
             testCharge, testQFs(iMode), number, []);
         
@@ -573,6 +576,7 @@ function sse = calculateerror_varyingintensity(x, extinctionRef, diameters, numb
     
     resonance_rad = 1./(diameters/2) * x(1);
     
+    error('Just add extinction per mode')
     [~, extinctionCrossSection] = calculateresonantormixtureabsorbtion(frequencyRange, resonance_rad, ...
         x(2:end-1), x(end), number, []);
 
@@ -669,6 +673,7 @@ function sse = calculateerror_intensityfunction(x, extinctionRef, diameters, num
                 resonance_rad = resonanceBase_rad*testSlopeMult(iMode-1);
             end
 
+            error('Just add extinction per mode')
             tempAbs = calculateresonantormixtureabsorbtion(freqToUse, resonance_rad, ...
                 intensityValues, testQFs(iMode), numberToUse, []);
 

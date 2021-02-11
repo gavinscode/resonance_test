@@ -24,6 +24,8 @@ function [absorbtion, extinction] = calculatespheremixtureabsorbtion(frequencyRa
     
     absorbtion = zeros(length(frequencyRange_rad),1);
     
+    extinction = zeros(length(frequencyRange_rad),1);
+    
     for jDiameter = 1:nResonance
                        
         if chargeVaries
@@ -32,15 +34,20 @@ function [absorbtion, extinction] = calculatespheremixtureabsorbtion(frequencyRa
             chargeToUse = chargeDifference;
         end
 
-        tempAbs = calculatesphereabsorbtion(...
+        [tempAbs, tempEx] = calculatesphereabsorbtion(...
             frequencyRange_rad, resonance_rad(jDiameter), mass(jDiameter), qualityFactor, chargeToUse, ...
             number(jDiameter), area, drive, mediumPermitivity);   
         
+        % absorbtions multiply together
         absorbtion = 1 - (1 - absorbtion) .* (1 - tempAbs);
+        
+        % Extincions add by number
+        extinction = extinction + tempEx*number(jDiameter);
     end
+    % Divide by total number
+    extinction = extinction/sum(number);
     
-    % Predict extinction that would be recorded from measuring all spheres
-    extinction = -area/sum(number).*log(1-absorbtion);
-
+    % previously took from absorbtion, identical
+%     extinction = -area/sum(number).*log(1-absorbtion);
 end
 
