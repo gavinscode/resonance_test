@@ -24,6 +24,8 @@ function [output] = rksolversecondorder(inputSignal, parameterList, timeStep)
     
     for iStep = 2:sampleLength
         
+        error('Check integration vs Rung-Kutt-Nystrom in Kryszig');
+        
         k1_1 = (inputSignal(iStep-1)-systemSpring*output(iStep-1)-...
             systemDamping*dY)/systemMass;
         

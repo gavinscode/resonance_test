@@ -78,7 +78,8 @@ inactivation2_result_ratio = [(4.9+6.9)/2 (36.7+39.0)/2 (62.8+65.2)/2];
 inactivation2_frequncy_Hz = 8.4;
 
 % from Ellison et al. 1996 pg 240 Pottel 1980, 25oC
-    % Should transcribe up to 100 Ghz - maybe he has a function for this?
+    % Maybe 10% 50 oC change in temeprature on permitivity 
+    % Use interpoalted eqns from p. 257
 permitivityValues = [73.11, 73.19, 73.13, 72.71, 72.63, 72.25, 71.92, 71.50, ... 
     71.21, 70.34, 69.45, 69.74, 69.24, 68.78, 68.69, 67.86, 67.13, 66.77, ... 
     65.38, 63.76, 63.04, 61.74, 62.04, 61.10, 59.46, 58.49, 58.18, 55.78, ... 

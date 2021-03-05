@@ -6,7 +6,7 @@ nanosphere_reference
 absorbtion_reference
 
 % Start with sizes measured on 50 GHz Bandwidth
-sizesToUse = [1 4 6];    
+sizesToUse = [6];    
     
 % Actual max mode number is -1
 modesToTest = 3;
@@ -121,7 +121,7 @@ for iSize = 1:length(sizesToUse)
 
     % Absorbtion and extinction for bulk    
     [bulkAbsorbtion, bulkExtinctionCrossSection] = calculatesphereabsorbtion(frequencyRange_rad, resonance_rad, ...
-        reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex), apertureArea, 1);
+        reducedMass, systemQ, qToUse, nanocrystalNumber(sizeIndex), apertureArea, 1, []);
     
     % Pre determine fixed parameters for each size
     resonanceBySize_rad = zeros(length(diameterDist), modesToTest);
