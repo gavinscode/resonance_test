@@ -17,6 +17,8 @@ function [power, amplitude] = calculateresonatorpower(frequencyRange_rad, resona
         % intensity currently represents intensity^2/mass
         % but will need to seperate when amplitude is implemented
         % eqn 34
+        
+        %%% Power doesn't change as fn of frequency, but may if QF kept constant
         power(iFreq) = (intensity^2/(2*gamma))*(gamma*frequencyRange_rad(iFreq))^2/...
             ((resonance_rad^2-frequencyRange_rad(iFreq)^2)^2 + (gamma*frequencyRange_rad(iFreq))^2);
         

@@ -1,3 +1,5 @@
+VACCUM_PERMITIVITY = 8.854187817*10^-12; %C^2/(N.M^2)
+LIGHT_SPEED = 299792458; % m/s
 
 %% Plot water permitivity
 % All functions using constants on p257 of Ellison et al. 257
@@ -238,6 +240,7 @@ power = 486; % Should be average or peak?
     %Peak rather than average amplitude seems to be used...
 dTpS = 2*pi*freq*VACCUM_PERMITIVITY*imag(-permitivity)/997/4200*...
     sqrt(power/(LIGHT_SPEED*VACCUM_PERMITIVITY*sqrt(real(permitivity))))^2
+%%% Why is square of field used here but power else where?
 
 % Factor of x10 larger than Sun recorded - obviously there was some heat loss...
 predictedHeat = dTpS*seconds
@@ -262,6 +265,7 @@ for iTemp = 1:length(temps)
            
            permitivity = (e0-e1)./(1+1j*2*pi*freqs*tau)+e1;
 
+           % eField for inside drop.
            eField = sqrt(power/(LIGHT_SPEED*VACCUM_PERMITIVITY)).*(3./(real(permitivity) + 2));
            
            dTpS = 2*pi.*freqs*VACCUM_PERMITIVITY.*imag(-permitivity)/997/4200.*eField.^2;
@@ -280,9 +284,7 @@ ylim([0 10*60])
 % Do for Douglas values first
 dropletDiameter = [0.0005 0.1 0.5]*10^-2; % From Douglas 2004
 
-%%% Something with absorbtion is really off
-%%% Douglas 2004 suggests some temperature change should occur for evaporation.
-    %%% But Qabs can be more than 1. Code above also fails in similar way
+%%% For bulk, try treating as 1mm radius to get absorbtion coeff.
 
 figure;
 for xDrop = 1:length(dropletDiameter)
@@ -327,7 +329,10 @@ end
     % Could have some effect, but probably not huge
 
 % Do for all values now
-dropletDiameter = [1 10 100 1000]*10^-6;
+% Using 10 mm here for 1ml drop size gives much smaller temp change than
+% other eqn - 
+
+dropletDiameter = [1 10 100 10000]*10^-6;
 
 for xDrop = 1:length(dropletDiameter)
     for iTemp = 1:length(temps)
@@ -366,10 +371,200 @@ for xDrop = 1:length(dropletDiameter)
     end
 end
 
-%% Exp with heating of virus directly - bit of a mess now..
-power = 10;
+%% Test for sphere embedded in material
 
+dropletDiameter = (100:200:1000)*10^-6; %(10:10:200)*10^-6; % (100:200:1000)*10^-6;
+
+colsD = jet(20);
+
+glassPerm = 4.2 + 0.04j; % borosilicate glass
+glass_mod = sqrt(real(glassPerm)^2+imag(glassPerm)^2);
+                   
+glassN = sqrt((glass_mod+real(glassPerm))/2) +...
+   1j*sqrt((glass_mod-real(glassPerm))/2);
+                   
+acrylicPerm = 2.65 + 0.02j;
+acrylic_mod = sqrt(real(acrylicPerm)^2+imag(acrylicPerm)^2);
+                   
+acrylicN = sqrt((acrylic_mod+real(acrylicPerm))/2) +...
+   1j*sqrt((acrylic_mod-real(acrylicPerm))/2);
+
+figure; 
+subplot(2,3,1); hold on
+plot(1:20, (LIGHT_SPEED./((1:20)*10^9)/real(glassN)))
+plot(1:20, (LIGHT_SPEED./((1:20)*10^9)/real(acrylicN)))
+plot(1:20, (LIGHT_SPEED./((1:20)*10^9)))
+
+for xDrop = 1:length(dropletDiameter)
+    subplot(2,3,4); hold on
+    plot(1:20, (LIGHT_SPEED./((1:20)*10^9)/real(glassN))./dropletDiameter(xDrop))
+    
+    subplot(2,3,5); hold on
+    plot(1:20, (LIGHT_SPEED./((1:20)*10^9)/real(acrylicN))./dropletDiameter(xDrop))
+    
+    subplot(2,3,6); hold on
+    plot(1:20, (LIGHT_SPEED./((1:20)*10^9))./dropletDiameter(xDrop))    
+end
+
+for i = 1:3
+   subplot(2,3,3+i); hold on
+   ylim([0 100])
+   line([1 20], [10 10])
+   
+end
+
+figure
+
+for xDrop = 1:length(dropletDiameter)
+    for iTemp = 3 % just at 25 deg
+       for jRange = 1:2 %Just to 20 GHz
+           if ~isnan(tempParam{1, iTemp, jRange})
+               e0 = tempParam{1, iTemp, jRange};      
+               e1 = tempParam{2, iTemp, jRange};   
+               tau = tempParam{3, iTemp, jRange}*10^-12;
+               freqs = (tempParam{4, iTemp, jRange}:2:tempParam{5, iTemp, jRange})*10^9;
+               
+               for kFreq = 1:length(freqs)
+                   
+                   permitivity = (e0-e1)./(1+1j*2*pi*freqs(kFreq)*tau)+e1;
+                    
+                   permitivity_mod = sqrt(real(permitivity)^2+imag(permitivity)^2);
+                   
+                   waterN = sqrt((permitivity_mod+real(permitivity))/2) +...
+                       1j*sqrt((permitivity_mod-real(permitivity))/2);
+
+                   % For glass
+                   m = waterN/glassN;
+                   
+                   x = pi*dropletDiameter(xDrop)./((LIGHT_SPEED/(freqs(kFreq)))/real(glassN));
+                   
+                   Qabs = mie_abs(m, x);
+                   
+                   subplot(3,3,1); hold on; plot(dropletDiameter(xDrop)*10^3, Qabs, 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+                   nj=5*round(2+x+4*x.^(1/3))+160;
+                   eValues = sqrt(mie_esquare(m, x, nj));
+                   
+                   % Take mean weighted by area
+                   dx=x/nj; xj=(0:dx:x);
+                   xarea = 4*pi*xj.^2;
+                   
+                   subplot(3,3,4); hold on; plot(dropletDiameter(xDrop)*10^3, wmean(eValues, xarea), 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+                   % limit should be correct if x << 1
+                   subplot(3,3,7); hold on; plot(dropletDiameter(xDrop)*10^3, x, 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+
+                   
+                   % For acrylic
+                   m = waterN/acrylicN;
+                   
+                   x = pi*dropletDiameter(xDrop)./((LIGHT_SPEED/(freqs(kFreq)))/real(acrylicN));
+
+                   Qabs = mie_abs(m, x);
+                   
+                   subplot(3,3,2); hold on; plot(dropletDiameter(xDrop)*10^3, Qabs, 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+                   nj=5*round(2+x+4*x.^(1/3))+160;
+                   eValues = sqrt(mie_esquare(m, x, nj));
+                   
+                   dx=x/nj; xj=(0:dx:x);
+                   xarea = 4*pi*xj.^2;
+                   
+                   subplot(3,3,5); hold on; plot(dropletDiameter(xDrop)*10^3, wmean(eValues, xarea), 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+                   subplot(3,3,8); hold on; plot(dropletDiameter(xDrop)*10^3, x, 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+  
+                   
+                   % For air
+                   m = waterN;
+                   
+                   x = pi*dropletDiameter(xDrop)./((LIGHT_SPEED/(freqs(kFreq))));
+
+                   Qabs = mie_abs(m, x);
+                   
+                   subplot(3,3,3); hold on; plot(dropletDiameter(xDrop)*10^3, Qabs, 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+                   nj=5*round(2+x+4*x.^(1/3))+160;
+                   eValues = sqrt(mie_esquare(m, x, nj));
+                   
+                   dx=x/nj; xj=(0:dx:x);
+                   xarea = 4*pi*xj.^2;
+                   
+                   subplot(3,3,6); hold on; plot(dropletDiameter(xDrop)*10^3, wmean(eValues, xarea), 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+                   subplot(3,3,9); hold on; plot(dropletDiameter(xDrop)*10^3, x, 'x', 'color', colsD(round(freqs(kFreq)/10^9),:))
+                   
+               end
+           end
+       end
+    end
+end
+
+for i = 1:3
+   subplot(3,3,i);
+   ylim([0 0.3])
+   line([0 1], [0.1 0.1])
+end
+
+% These actualy vary as a function of freq because of change in perm.
+% Using 10 Ghz and 25 o for now...
+subplot(3,3,4);
+line([0 1], [1 1]*(real(glassPerm)*3)/(real(glassPerm)*2+62.52))
+
+subplot(3,3,5);
+line([0 1], [1 1]*(real(acrylicPerm)*3)/(real(acrylicPerm)*2+62.52))
+
+subplot(3,3,6);
+line([0 1], [1 1]*(3)/(2+62.52))
+
+%% Exp with heating of virus directly - bit of a mess now..
+
+power = 10; %486
+
+% 10% Attenuation at 6Ghz - would have come from subset of viruses...
 ExAbs = -1/(1.25*10^-3*7.5*10^14)*log(1-0.1);
+
+% From 1972 Structure book, hydrated
+mass = 1.2*10^-18;
+
+diameter = 120*10^-9;
+
+% Reduced concentration to reflect lower number of smaller spheres
+% dist of mass would also change, most have smaller mass than peak at 6GHz 
+conc = 7.5*10^14*0.01;
+
+deltaTm = 7;
+
+%From image, looks like around 1ml
+    % May be heating bulk, but almost certainly wouldn't heat drop - too few viruses
+    % Unless density of viruses is very high.
+vol = 1*10^-3; (4/3*pi*(10/2*10^-6)^3); 
+
+nViruses = vol*conc;
+
+kw = 0.6;
+
+% Eqn 15 from Sci Rep paper
+deltaTv = ExAbs*power/4/pi/(diameter/2)/kw
+
+% From eqn 14
+deltaTs = deltaTm/(nViruses);
+
+Cwater = 4200;
+Cvirus = 1300; % Big estimate
+
+deltaTv2 = vol*Cwater/(mass*nViruses*Cvirus)*deltaTs
+
+massSln = vol
+virusMass = mass*nViruses
+
+%%% Big diff between two deltaTvs suggests this wasn't at equilibirum
+
+% Approx deltaTm is also crazy - would be unstable loss before that..
+deltaTm2 = deltaTv/(massSln*Cwater)*virusMass*Cvirus*(nViruses)
+
+
+%% Note sure what I was doing below here - somehting about heating
 
 permitivity = 71.35 + 18.37j; % 30 deg at 6 GHz
 

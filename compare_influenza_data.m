@@ -10,18 +10,23 @@ dataInactFreq2016 = readmatrix('Influenza_inact_freq_2016.csv');
 
 dataInactInt2016 = readmatrix('Influenza_inact_int_2016.csv');
 
+dataInactInt2016(end,2) = 100;
+
 % Plot freq
-figure; hold on;
+f1 = figure; hold on;
 
-plot(dataAbs2009(:,1), dataAbs2009(:,2), 'k:')
-plot(dataAbs2016(:,1), dataAbs2016(:,2), 'k')
+plot(dataAbs2009(:,1), dataAbs2009(:,2), 'k:', 'linewidth',2)
+plot(dataAbs2016(:,1), dataAbs2016(:,2), 'k', 'linewidth',2)
 
-title('Influenza absorbtion')
-xlabel('Frequency (GHz)')
-ylabel('Absorption (%)')
-legend('2009', '2016')
+set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
+set(gcf, 'color', 'w');
 
-% Plot inactivation as im
+title('Influenza absorbtion', 'FontSize', 20)
+xlabel('Frequency (GHz)', 'FontSize',20)
+ylabel('Absorption (%)', 'FontSize',20)
+legend('2009', '2016', 'FontSize',15)
+
+%% Plot inactivation as im
 freqRange = 5:0.2:15;
 intRange = 0:20:1000;
 
@@ -72,62 +77,123 @@ for i = 1:length(intRange)
   [~, safeRef(i,4)] = min(abs(intRange - safePower));
 end
 
-figure;
-subplot(1,3,3)
+f2 = figure;
+set(f2, 'WindowState', 'maximized')
+pause(0.1)
+
+subplot(1,4,3); hold on
 imshow(inactImage');
-hold on
+
 
 % Plot measurment points
-plot(freqRef, intInd, 'rx')
-plot(freqInd, intRef, 'mo')
 
+plot(freqInd, intRef, 'mo', 'markersize', 10, 'linewidth', 2)
+plot(freqRef, intInd, 'rx', 'markersize', 10, 'linewidth', 2)
 % Plot safe level
-plot(1:51, safeRef(:,1), 'b')
-plot(1:51, safeRef(:,2), 'g')
-plot(1:51, safeRef(:,3), 'b--')
-plot(1:51, safeRef(:,4), 'g--')
+plot(1:51, safeRef(:,1), 'b', 'linewidth', 2)
+plot(1:51, safeRef(:,2), 'g', 'linewidth', 2)
+plot(1:51, safeRef(:,3), 'b--', 'linewidth', 2)
+plot(1:51, safeRef(:,4), 'g--', 'linewidth', 2)
 
 axis on
 set(gca,'YTick', 1:10:51, 'YTickLabel', intRange(1:10:51), ...
     'XTick', 1:10:51, 'XTickLabel', freqRange(1:10:51))
+set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
 
-xlabel('Frequency (GHz)')
-ylabel('Power density (W/m^2)')
-
+title('Power by Frequency', 'FontSize', 20)
+xlabel('Frequency (GHz)', 'FontSize', 20)
+ylabel('Power density (W/m^2)', 'FontSize', 20)
+xlim([1 51]); ylim([1 51])
 % Set up colors
 cols = gray(101);
 cols(1,:) = [0.2, 0, 0];
 
 colormap(cols)
 
-hBar = colorbar;
-set(hBar, 'Ticks', 0:0.2:1, 'TickLabels', 0:20:100)
-
 % Plot linear as well
-subplot(1,3,1); hold on
-plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), 'r-x')
-plot(dataAbs2016(:,1), dataAbs2016(:,2)/max(dataAbs2016(:,2))*100, 'k')
-xlabel('Frequency (GHz)')
-ylabel('Inactivation/Absorption (%)')
-xlim([5 15]); ylim([0 101])
+subplot(1,4,1); hold on
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), 'r-x', 'linewidth', 2, 'markersize', 8)
+plot(dataAbs2016(:,1), dataAbs2016(:,2)/max(dataAbs2016(:,2))*100, 'k', 'linewidth', 1.5)
+xlim([5 15]); ylim([0 100])
+axis square 
+
+set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
+
+title('Inactivation by frequency', 'FontSize', 20)
+xlabel('Frequency (GHz)', 'FontSize', 20)
+ylabel('Inactivation/Absorption (%)', 'FontSize', 20)
+legend('Inactivation','Absorption', 'FontSize', 20)
+
+
+subplot(1,4,2); hold on
+plot(dataInactInt2016(:,1), dataInactInt2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+line([1 1]*(200*(8/3)^0.2)/2, [0 100], 'color', 'b', 'linewidth', 1.5)
+line([1 1]*(18.56*(8)^0.699)/2, [0 100], 'color', 'g', 'linewidth', 1.5)
+line([1 1]*(50)/2, [0 100], 'color', 'b', 'linestyle', '--', 'linewidth', 1.5)
+line([1 1]*(10)/2, [0 100], 'color', 'g', 'linestyle', '--', 'linewidth', 1.5)
+ylim([0 1000]); ylim([0 100])
+axis square 
+
+set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
+
+title('Inactivation by power', 'FontSize', 20)
+xlabel('Power density (W/m^2)', 'FontSize', 20)
+ylabel('Inactivation (%)', 'FontSize', 20)
+legend('Inactivation', 'Limit - peak, occupational', 'Limit - peak, public', ...
+    'Limit - average, occupational', 'Limit - average, public', 'FontSize',15)
+
+% Put color bar on seperate supbplot so it doesn't contract image
+subplot(1,4,4); hold on
+colormap(cols)
+hBar = colorbar('west');
+set(hBar, 'Ticks', 0:0.2:1, 'TickLabels', 0:20:100)
+set(hBar,'TickDir','out', 'LineWidth',1, 'FontSize',15)
 axis square
+ylabel('Inactivation (%)', 'FontSize', 20)
+axis off
+temp = gca; temp.YLabel.Visible = 'on';
+% temp = get(gca, 'Position');
+% temp(1) = 0.77; set(gca, 'Position', temp)
+% temp = get(hBar, 'Position');
+% temp = [0.77 0.4, 0.008, 0.25]; set(hBar, 'Position', temp)
 
-legend('Inactivation x freq','Absorption')
+set(gcf, 'color', 'w');
 
-subplot(1,3,2)
-plot(dataInactInt2016(:,1), dataInactInt2016(:,2), 'm-o')
-xlabel('Power density (W/m^2)')
-ylabel('Inactivation (%)')
-line([1 1]*(200*(8/3)^0.2)/2, [0 100], 'color', 'b')
-line([1 1]*(18.56*(8)^0.699)/2, [0 100], 'color', 'g')
-line([1 1]*(50)/2, [0 100], 'color', 'b', 'linestyle', '--')
-line([1 1]*(10)/2, [0 100], 'color', 'g', 'linestyle', '--')
-ylim([0 1000]); ylim([0 101])
-axis square
+%% Make simulated data
 
-legend('Inactivation x power', 'Safe power - peak, occupational (8 GHz)', 'Safe power - peak, public (8 GHz)', ...
-    'Safe power - average, occupational (8 GHz)', 'Safe power - average, public (8 GHz)')
+replicates = 3;
 
+% Phase 1.1 - also want to fit function to get peak 
+simFreqTest_freqs = 1:1:20;
+simFreqTest_power = 500;
+simFreqTest_inact = 70*exp(-(simFreqTest_freqs-8.5).^2/(2*2^2));
+simFreqTest_times = 15*60;
+
+% Phase 1.2 - indicate 5 points on funciton, indicate minimum effective power
+simPowerTest_freqs = [4 6 8.5 11 13]; % set correct
+simPowerTest_power = 10:10:100;
+simPowerTest_inact_1 = []; % sigmoidal
+simPowerTest_inact_2 = []; % step-up
+simPowerTest_times = 15*60;
+
+% Phase 1.3 - identify 50% and 100% effective durations
+simTimeTest_freqs = [4 8.5 13]; %set correct
+simTimeTest_power = [45 90]; % 
+simTimeTest_times = [0.1 1 10 100 1000]; % 
+simTimeTest_inact_1 = []; % all flat
+simTimeTest_inact_2 = []; % curve up to 100%
+
+% Phase 1.4
+
+% Phase 1.5
+
+% Phase 2.1
+
+% Phase 2.2
+
+figure;
+plot(simFreqTest_freqs, simFreqTest_inact)
+xlim([1 20]); ylim([0 100])
 %% Experiment with distance
 warning('Get contour lines instead of plotting points')
 
@@ -294,7 +360,7 @@ dielectricConstant = 67;
 % If radius << smaller than wavelength
 fieldReduction_1 = 1/(3/(dielectricConstant+2))
 
-% If similar size, take intensity from Mie scattering
+% If similar size, take intensity from Mie scattering7
 m = sqrt(dielectricConstant);
 
 %%% Get proper radial average - how does intenal e-field vary
