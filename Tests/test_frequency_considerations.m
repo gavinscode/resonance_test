@@ -564,6 +564,34 @@ virusMass = mass*nViruses
 deltaTm2 = deltaTv/(massSln*Cwater)*virusMass*Cvirus*(nViruses)
 
 
+%% Quick experiment with looking at field inside water droplet
+
+dielectricConstant = 67;
+
+% If radius << smaller than wavelength
+fieldReduction_1 = 1/(3/(dielectricConstant+2))
+
+% If similar size, take intensity from Mie scattering7
+m = sqrt(dielectricConstant);
+
+%%% Get proper radial average - how does intenal e-field vary
+% << ~= >>
+
+x = pi*5e-6/(LIGHT_SPEED/(8*10^9));
+nj=5*round(2+x+4*x.^(1/3))+160;
+eValues = sqrt(mie_esquare(m, x, nj));
+
+% Integral as in Q could be better reference, but already looks to be between extremes
+fieldReduction_2 = 1./[max(eValues) mean(eValues) min(eValues)]
+
+% These two are similar, for large constant, differ a lot for smaller
+% Geometric case - for normal incidence, will decrease with angle
+warning('calc of n should use complex modulus')
+fieldReduction_3 = 1/(1-((1-sqrt(dielectricConstant))/(1+sqrt(dielectricConstant)))^2)
+
+% From keeping power constant
+fieldReduction_4 = 1/sqrt(1/sqrt(dielectricConstant))
+
 %% Note sure what I was doing below here - somehting about heating
 
 permitivity = 71.35 + 18.37j; % 30 deg at 6 GHz

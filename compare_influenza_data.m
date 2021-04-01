@@ -8,9 +8,9 @@ dataAbs2016 = readmatrix('Influenza_abs_2016.csv');
 
 dataInactFreq2016 = readmatrix('Influenza_inact_freq_2016.csv');
 
-dataInactInt2016 = readmatrix('Influenza_inact_int_2016.csv');
+dataInactPower2016 = readmatrix('Influenza_inact_int_2016.csv');
 
-dataInactInt2016(end,2) = 100;
+dataInactPower2016(end,2) = 100;
 
 % Plot freq
 f1 = figure; hold on;
@@ -28,53 +28,53 @@ legend('2009', '2016', 'FontSize',15)
 
 %% Plot inactivation as im
 freqRange = 5:0.2:15;
-intRange = 0:20:1000;
+powerRange = 0:20:1000;
 
-inactImage = zeros(length(freqRange), length(intRange));
+inactImage = zeros(length(freqRange), length(powerRange));
 
 interpInactFreq = interp1(dataInactFreq2016(:,1), dataInactFreq2016(:,2),...
     freqRange, 'linear', 0);
 
-interpInactInt = interp1(dataInactInt2016(:,1), dataInactInt2016(:,2),...
-    intRange, 'linear', 0);
+interpInactPower = interp1(dataInactPower2016(:,1), dataInactPower2016(:,2),...
+    powerRange, 'linear', 0);
 
-% Place int inativation
+% Place power inativation
 [~, freqInd] = min(abs(freqRange - 8));
-inactImage(freqInd, :) = interpInactInt/100;
+inactImage(freqInd, :) = interpInactPower/100;
 
-intRef = zeros(length(dataInactInt2016(:,1)),1);
-for i = 1:length(dataInactInt2016(:,1))
-   [~, intRef(i)] = min(abs(intRange - dataInactInt2016(i,1))); 
+powerRef = zeros(length(dataInactPower2016(:,1)),1);
+for i = 1:length(dataInactPower2016(:,1))
+   [~, powerRef(i)] = min(abs(powerRange - dataInactPower2016(i,1))); 
 end
 
 %Place freq inactivation
-[~, intInd] = min(abs(intRange - dataInactInt2016(end,1)));
-inactImage(:, intInd) = interpInactFreq/100;
+[~, powerInd] = min(abs(powerRange - dataInactPower2016(end,1)));
+inactImage(:, powerInd) = interpInactFreq/100;
 
 freqRef = zeros(length(dataInactFreq2016(:,1)),1);
 for i = 1:length(dataInactFreq2016(:,1))
    [~, freqRef(i)] = min(abs(freqRange - dataInactFreq2016(i,1)));
 end
 
-safeRef = zeros(length(intRange),4);
-for i = 1:length(intRange)
+safeRef = zeros(length(powerRange),4);
+for i = 1:length(powerRange)
    %%% note, limit is specified as spatial peak value of PD in controlled environments, not public
    %%% Sun divides by 2 to compare to average power?
    safePower = (200*(freqRange(i)/3).^0.2)/2;
    
-  [~, safeRef(i,1)] = min(abs(intRange - safePower));
+  [~, safeRef(i,1)] = min(abs(powerRange - safePower));
   
   safePower = (18.56*(freqRange(i))^0.699)/2;
    
-  [~, safeRef(i,2)] = min(abs(intRange - safePower));
+  [~, safeRef(i,2)] = min(abs(powerRange - safePower));
   
   safePower = (50)/2;
    
-  [~, safeRef(i,3)] = min(abs(intRange - safePower));
+  [~, safeRef(i,3)] = min(abs(powerRange - safePower));
   
   safePower = (10)/2;
    
-  [~, safeRef(i,4)] = min(abs(intRange - safePower));
+  [~, safeRef(i,4)] = min(abs(powerRange - safePower));
 end
 
 f2 = figure;
@@ -84,11 +84,9 @@ pause(0.1)
 subplot(1,4,3); hold on
 imshow(inactImage');
 
-
 % Plot measurment points
-
-plot(freqInd, intRef, 'mo', 'markersize', 10, 'linewidth', 2)
-plot(freqRef, intInd, 'rx', 'markersize', 10, 'linewidth', 2)
+plot(freqInd, powerRef, 'mo', 'markersize', 8, 'linewidth', 2)
+plot(freqRef, powerInd, 'rx', 'markersize', 8, 'linewidth', 2)
 % Plot safe level
 plot(1:51, safeRef(:,1), 'b', 'linewidth', 2)
 plot(1:51, safeRef(:,2), 'g', 'linewidth', 2)
@@ -96,7 +94,7 @@ plot(1:51, safeRef(:,3), 'b--', 'linewidth', 2)
 plot(1:51, safeRef(:,4), 'g--', 'linewidth', 2)
 
 axis on
-set(gca,'YTick', 1:10:51, 'YTickLabel', intRange(1:10:51), ...
+set(gca,'YTick', 1:10:51, 'YTickLabel', powerRange(1:10:51), ...
     'XTick', 1:10:51, 'XTickLabel', freqRange(1:10:51))
 set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
 
@@ -124,9 +122,8 @@ xlabel('Frequency (GHz)', 'FontSize', 20)
 ylabel('Inactivation/Absorption (%)', 'FontSize', 20)
 legend('Inactivation','Absorption', 'FontSize', 20)
 
-
 subplot(1,4,2); hold on
-plot(dataInactInt2016(:,1), dataInactInt2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
 line([1 1]*(200*(8/3)^0.2)/2, [0 100], 'color', 'b', 'linewidth', 1.5)
 line([1 1]*(18.56*(8)^0.699)/2, [0 100], 'color', 'g', 'linewidth', 1.5)
 line([1 1]*(50)/2, [0 100], 'color', 'b', 'linestyle', '--', 'linewidth', 1.5)
@@ -139,8 +136,8 @@ set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
 title('Inactivation by power', 'FontSize', 20)
 xlabel('Power density (W/m^2)', 'FontSize', 20)
 ylabel('Inactivation (%)', 'FontSize', 20)
-legend('Inactivation', 'Limit - peak, occupational', 'Limit - peak, public', ...
-    'Limit - average, occupational', 'Limit - average, public', 'FontSize',15)
+legend('Inactivation', 'Limit - local, occupational', 'Limit - local, public', ...
+    'Limit - body, occupational', 'Limit - body, public', 'FontSize',15)
 
 % Put color bar on seperate supbplot so it doesn't contract image
 subplot(1,4,4); hold on
@@ -163,27 +160,41 @@ set(gcf, 'color', 'w');
 
 replicates = 3;
 
+warning('Need to add random replicates with some variance')
+
 % Phase 1.1 - also want to fit function to get peak 
 simFreqTest_freqs = 1:1:20;
-simFreqTest_power = 500;
-simFreqTest_inact = 70*exp(-(simFreqTest_freqs-8.5).^2/(2*2^2));
-simFreqTest_times = 15*60;
+simFreqTest_power = 400;
+
+curveMax = 80;
+curveCenter = 8.5; 
+curveSpread = 2.3;
 
 % Phase 1.2 - indicate 5 points on funciton, indicate minimum effective power
-simPowerTest_freqs = [4 6 8.5 11 13]; % set correct
+simPowerTest_freqPoints = [0.01 0.5-(0.68*1.13)/2 0.5 0.5+(0.68*1.13)/2 0.99]; % from distribution
 simPowerTest_power = 10:10:100;
-simPowerTest_inact_1 = []; % sigmoidal
-simPowerTest_inact_2 = []; % step-up
 simPowerTest_times = 15*60;
 
+% test sigmoid and step-up
+sigCentre = 70;
+sigSlope = 0.08;
+sigAmpOffset = [1 0.75 1 1 2]*0.6;
+
+stepMin = 50;
+
 % Phase 1.3 - identify 50% and 100% effective durations
-simTimeTest_freqs = [4 8.5 13]; %set correct
-simTimeTest_power = [45 90]; % 
+simTimeTest_freqPoints = [0.01 0.5-(0.68*1.13)/2 0.5 0.5+(0.68*1.13)/2 0.99]; % from distribution
+simTimeTest_effectPower = [1 2 4]; % multiplier
 simTimeTest_times = [0.1 1 10 100 1000]; % 
 simTimeTest_inact_1 = []; % all flat
 simTimeTest_inact_2 = []; % curve up to 100%
 
 % Phase 1.4
+simScanTest_freqRange = [0.01 0.99]; % from distribution
+simScanTest_freqSpacing = [0.25 0.5 1];
+simScanTest_effectPower = [1 2 4]; % mult
+simScanTest_minTime = [0.5 1]; % mult 
+simScanTest_inact_1 = []; % many possible...
 
 % Phase 1.5
 
@@ -191,192 +202,137 @@ simTimeTest_inact_2 = []; % curve up to 100%
 
 % Phase 2.2
 
-figure;
-plot(simFreqTest_freqs, simFreqTest_inact)
-xlim([1 20]); ylim([0 100])
-%% Experiment with distance
-warning('Get contour lines instead of plotting points')
+% Make simulated plots
+freqRange = min(simFreqTest_freqs):0.2:max(simFreqTest_freqs);
+freqRangeFine = 0:0.05:max(simFreqTest_freqs);
+powerRange = 0:5:500;
 
-LIGHT_SPEED = 299792458; % m/s
+inactImage = zeros(length(freqRange), length(powerRange));
 
-VACCUM_PERMITIVITY = 8.854187817*10^-12; %C^2/(N.M^2)
-
-distanceRange = 0:0.1:10;
-    distanceTick = 1:10:101;
-
-% powerRange = 10:10:1000; % Actually density, taken at 0.1 m  
-powerRange = 0:0.1:20; % Taken at source
-    powerTick = 1:10:201;
-    
-%%% This is for 18 degree horn antenna used in study
-    % Get parameters for others to try
-gainDBI = 30;
-directionality = 360/gainDBI %Gain is roughly directionality
-antennaGain = 10^(gainDBI/10); %20 % Convert from dBi to numeric
-
-fieldThresholdLow = 10; % optimistic - originally 50, Sun thinks 68 is low!
-fieldThresholdExpected = 87; % Sun expected
-
-dielectricConstant = 67.4; % Water 8Ghz, real
-
-powerLimitOccupational = (200*(8/3)^0.2)/2; % at 8 GHz
-powerLimitPublic = (18.56*(8)^0.699)/2; % at 8 GHz
-
-powerImage = zeros(length(distanceRange), length(powerRange));
-
-for i = 1:length(distanceRange)
-    for j = 1:length(powerRange)
-        % From https://www.ahsystems.com/EMC-formulas-equations/field-intensity-calculation.php
-%         S = Gt*Pt/4/pi/R^2
-        powerImage(i,j) = powerRange(j)*antennaGain/(4*pi*distanceRange(i)^2);
-
-        % Guess based on inverse square law
-%         powerImage(i,j) = powerRange(j)*distanceRange(1)^2/distanceRange(i)^2;
-    end
+safeRef = zeros(length(freqRange),4);
+for i = 1:length(freqRange)
+  %%% note, limit is specified as spatial peak value of PD in controlled environments, not public
+  safePower = (200*(freqRange(i)/3).^0.2)/2;
+   
+  [~, safeRef(i,1)] = min(abs(powerRange - safePower));
+  
+  safePower = (18.56*(freqRange(i))^0.699)/2;
+   
+  [~, safeRef(i,2)] = min(abs(powerRange - safePower));
+  
+  safePower = (50)/2;
+   
+  [~, safeRef(i,3)] = min(abs(powerRange - safePower));
+  
+  safePower = (10)/2;
+   
+  [~, safeRef(i,4)] = min(abs(powerRange - safePower));
 end
 
-fieldImageAir = sqrt(powerImage*2/(LIGHT_SPEED*VACCUM_PERMITIVITY));
+% Phase 1.1
+simFreqTest_inact = curveMax*exp(-(simFreqTest_freqs-curveCenter).^2/(2*curveSpread^2));
 
-%%% Replace with refaction calc later
-fieldImageWater = sqrt(powerImage*2/(LIGHT_SPEED*VACCUM_PERMITIVITY*sqrt(dielectricConstant)));
+interpInactFreq = interp1(simFreqTest_freqs, simFreqTest_inact,...
+    freqRange, 'linear', 0);
 
-fieldImageWaterDrop = sqrt(powerImage*2/(LIGHT_SPEED*VACCUM_PERMITIVITY))*(3/(dielectricConstant+2));
+%Place freq inactivation
+[~, powerInd] = min(abs(powerRange - simFreqTest_power));
+inactImage(:, powerInd) = interpInactFreq/100;
+
+freqRef = zeros(length(simFreqTest_freqs),1);
+for i = 1:length(simFreqTest_freqs)
+   [~, freqRef(i)] = min(abs(freqRange - simFreqTest_freqs(i)));
+end
 
 figure;
-subplot(3,2,1)
-imshow(log10(powerImage)/3); hold on
-% Get inactivated area - low, air
-inds = find(fieldImageAir > fieldThresholdLow);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-plot(powerY, powerX, 'r.')
+subplot(1,3,1); hold on
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2)-(100-curveMax), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
+plot(simFreqTest_freqs, simFreqTest_inact, 'r-x', 'linewidth', 2, 'markersize', 8)
+xlim([1 20]); ylim([0 100])
 
-axis on
-set(gca,'YTick', distanceTick, 'YTickLabel', distanceRange(distanceTick), ...
-    'XTick', powerTick, 'XTickLabel', powerRange(powerTick))
-ylabel('Distance (m)')
-xlabel('Source power (W)')
+% fit curve
+fittedCurve = fit(simFreqTest_freqs', simFreqTest_inact', 'gauss1');
+curveInact = fittedCurve.a1*exp(-((freqRangeFine-fittedCurve.b1)/fittedCurve.c1).^2);
 
-title('Air - optimistic threshold')
+plot(freqRangeFine, curveInact, 'b:', 'linewidth', 2);
 
-subplot(3,2,3)
-imshow(log10(powerImage)/3); hold on
-% Get inactivated area - low, water
-inds = find(fieldImageWater > fieldThresholdLow);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-plot(powerY, powerX, 'r.')
+% take points for other tests
+cdfCurve = cumsum(curveInact)/sum(curveInact);
 
-axis on
-set(gca,'YTick', distanceTick, 'YTickLabel', distanceRange(distanceTick), ...
-    'XTick', powerTick, 'XTickLabel', powerRange(powerTick))
-ylabel('Distance (m)')
-xlabel('Source power (W)')
+% Power test
+for i = 1:length(simPowerTest_freqPoints)
+    inds = find(cdfCurve > simPowerTest_freqPoints(i));
+    
+    simPowerTest_freqPoints(i) = freqRangeFine(inds(1));
+end
 
-title('Water - optimistic threshold')
+plot(simPowerTest_freqPoints, fittedCurve.a1*exp(-((simPowerTest_freqPoints-fittedCurve.b1)/fittedCurve.c1).^2), 'go', 'markersize', 10, 'linewidth', 2)
 
-subplot(3,2,5)
-imshow(log10(powerImage)/3); hold on
-% Get inactivated area - low, water
-inds = find(fieldImageWaterDrop > fieldThresholdLow);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-plot(powerY, powerX, 'r.')
+% Time test
+for i = 1:length(simTimeTest_freqPoints)
+    inds = find(cdfCurve > simTimeTest_freqPoints(i));
+    
+    simTimeTest_freqPoints(i) = freqRangeFine(inds(1));
+end
 
-axis on
-set(gca,'YTick', distanceTick, 'YTickLabel', distanceRange(distanceTick), ...
-    'XTick', powerTick, 'XTickLabel', powerRange(powerTick))
-ylabel('Distance (m)')
-xlabel('Source power (W)')
+% Scan test
+for i = 1:length(simScanTest_freqRange)
+    inds = find(cdfCurve > simScanTest_freqRange(i));
+    
+    simScanTest_freqRange(i) = freqRangeFine(inds(1));
+end
 
-title('Drop - optimistic threshold')
+% show image
 
-subplot(3,2,2)
-imshow(log10(powerImage)/3); hold on
-% Get inactivated area - low, air
-inds = find(fieldImageAir > fieldThresholdExpected);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-plot(powerY, powerX, 'r.')
+subplot(1,3,2); hold on
+imshow(inactImage');
 
-axis on
-set(gca,'YTick', distanceTick, 'YTickLabel', distanceRange(distanceTick), ...
-    'XTick', powerTick, 'XTickLabel', powerRange(powerTick))
-ylabel('Distance (m)')
-xlabel('Source power (W)')
+plot(freqRef, powerInd, 'rx', 'markersize', 8, 'linewidth', 2)
 
-title('Air - pessimistic threshold')
+% Set up colors
+cols = gray(101);
+cols(1,:) = [0.2, 0, 0];
+colormap(cols)
 
-subplot(3,2,4)
-imshow(log10(powerImage)/3); hold on
-% Get inactivated area - low, air
-inds = find(fieldImageWater > fieldThresholdExpected);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-plot(powerY, powerX, 'ro')
+plot(1:length(freqRange), safeRef(:,1), 'b', 'linewidth', 2)
+plot(1:length(freqRange), safeRef(:,2), 'g', 'linewidth', 2)
+plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
+plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
-axis on
-set(gca,'YTick', distanceTick, 'YTickLabel', distanceRange(distanceTick), ...
-    'XTick', powerTick, 'XTickLabel', powerRange(powerTick))
-ylabel('Distance (m)')
-xlabel('Source power (W)')
+%% Phase 1.2
 
-title('Water - pessimistic threshold')
+warning('Need to calcualte proper factorial')
 
-subplot(3,2,6)
-imshow(log10(powerImage)/3); hold on
-% Get inactivated area - low, air
-inds = find(fieldImageWaterDrop > fieldThresholdExpected);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-plot(powerY, powerX, 'ro')
+figure; 
+subplot(1,2,1); hold on
+% sigmoidal example
+for i = 1:length(simPowerTest_freqPoints)
+    curveVal = curveMax*exp(-(simPowerTest_freqPoints(i)-curveCenter).^2/(2*curveSpread^2)) * sigAmpOffset(i);
+    
+    simPowerTest_inact_1 = 1./(1+exp(-(simPowerTest_power-sigCentre)*sigSlope)) * curveVal;
 
-axis on
-set(gca,'YTick', distanceTick, 'YTickLabel', distanceRange(distanceTick), ...
-    'XTick', powerTick, 'XTickLabel', powerRange(powerTick))
-ylabel('Distance (m)')
-xlabel('Source power (W)')
+    plot(simPowerTest_power, simPowerTest_inact_1, 'x')
+end
 
-title('Drop - pessimistic threshold')
+plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+xlim([0 100]); ylim([0 50])
 
-% Indicate dangerous area - public
-inds = find(powerImage > powerLimitPublic);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-subplot(3,2,1); plot(powerY, powerX, 'gx')
-subplot(3,2,2); plot(powerY, powerX, 'gx')
-subplot(3,2,3); plot(powerY, powerX, 'gx')
-% subplot(3,2,4); plot(powerY, powerX, 'gx')
-subplot(3,2,5); plot(powerY, powerX, 'gx')
-subplot(3,2,6); plot(powerY, powerX, 'gx')
+% step-up example
+subplot(1,2,2); hold on
+for i = 1:length(simPowerTest_freqPoints)
+    curveVal = curveMax*exp(-(simPowerTest_freqPoints(i)-curveCenter).^2/(2*curveSpread^2)) * sigAmpOffset(i);
+    
+    simPowerTest_inact_2 = 1./(1+exp(-(simPowerTest_power-sigCentre)*sigSlope)) * curveVal;
+    
+    simPowerTest_inact_2(simPowerTest_power < stepMin) = 0;
 
-% Indicate dangerous area - occupational
-inds = find(powerImage > powerLimitOccupational);
-[powerX, powerY] = ind2sub(size(powerImage), inds);
-subplot(3,2,1); plot(powerY, powerX, 'bx')
-subplot(3,2,2); plot(powerY, powerX, 'bx')
-subplot(3,2,3); plot(powerY, powerX, 'bx')
-subplot(3,2,4); plot(powerY, powerX, 'bx')
-subplot(3,2,5); plot(powerY, powerX, 'bx')
-% subplot(3,2,6); plot(powerY, powerX, 'bx')
+    plot(simPowerTest_power, simPowerTest_inact_2, 'x')
+end
 
-%% Quick experiment with looking at field inside water droplet
+plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+xlim([0 100]); ylim([0 50])
 
-dielectricConstant = 67;
+warning('Need to add map')
 
-% If radius << smaller than wavelength
-fieldReduction_1 = 1/(3/(dielectricConstant+2))
-
-% If similar size, take intensity from Mie scattering7
-m = sqrt(dielectricConstant);
-
-%%% Get proper radial average - how does intenal e-field vary
-% << ~= >>
-
-x = pi*5e-6/(LIGHT_SPEED/(8*10^9));
-nj=5*round(2+x+4*x.^(1/3))+160;
-eValues = sqrt(mie_esquare(m, x, nj));
-
-% Integral as in Q could be better reference, but already looks to be between extremes
-fieldReduction_2 = 1./[max(eValues) mean(eValues) min(eValues)]
-
-% These two are similar, for large constant, differ a lot for smaller
-% Geometric case - for normal incidence, will decrease with angle
-warning('calc of n should use complex modulus')
-fieldReduction_3 = 1/(1-((1-sqrt(dielectricConstant))/(1+sqrt(dielectricConstant)))^2)
-
-% From keeping power constant
-fieldReduction_4 = 1/sqrt(1/sqrt(dielectricConstant))
+%% Phase 1.3
+%Times...
