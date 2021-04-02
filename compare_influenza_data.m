@@ -26,7 +26,7 @@ xlabel('Frequency (GHz)', 'FontSize',20)
 ylabel('Absorption (%)', 'FontSize',20)
 legend('2009', '2016', 'FontSize',15)
 
-%% Plot inactivation as im
+% Plot inactivation as im
 freqRange = 5:0.2:15;
 powerRange = 0:20:1000;
 
@@ -165,6 +165,7 @@ warning('Need to add random replicates with some variance')
 % Phase 1.1 - also want to fit function to get peak 
 simFreqTest_freqs = 1:1:20;
 simFreqTest_power = 400;
+simFreqTest_time = 1000;
 
 curveMax = 80;
 curveCenter = 8.5; 
@@ -173,24 +174,28 @@ curveSpread = 2.3;
 % Phase 1.2 - indicate 5 points on funciton, indicate minimum effective power
 simPowerTest_freqPoints = [0.01 0.5-(0.68*1.13)/2 0.5 0.5+(0.68*1.13)/2 0.99]; % from distribution
 simPowerTest_power = 10:10:100;
-simPowerTest_times = 15*60;
+simPowerTest_time = simFreqTest_time;
 
 % test sigmoid and step-up
-sigCentre = 70;
-sigSlope = 0.08;
-sigAmpOffset = [1 0.75 1 1 2]*0.6;
+powerCentre = 70;
+powerSlope = 0.08;
+powerAmpOffset = [1 0.75 1 1 2]*0.6;
 
-stepMin = 50;
+stepMin = 50*[1.4 1.2 1 0.9 0.8];
+
+powerCols = cool(length(simPowerTest_freqPoints));
 
 % Phase 1.3 - identify 50% and 100% effective durations
-simTimeTest_freqPoints = [0.01 0.5-(0.68*1.13)/2 0.5 0.5+(0.68*1.13)/2 0.99]; % from distribution
+simTimeTest_freqPoints = simPowerTest_freqPoints; % from distribution
 simTimeTest_effectPower = [1 2 4]; % multiplier
-simTimeTest_times = [0.1 1 10 100 1000]; % 
-simTimeTest_inact_1 = []; % all flat
-simTimeTest_inact_2 = []; % curve up to 100%
+simTimeTest_times = [0.01 0.1 1 10 100]; % May start to get some band splitting issues.
+
+timeSlope = 5;
+timeSlopeOffset = [0.5 0.75 1.1 1.3 1.5];
+powerSlopeOffset = [1 2 4];
 
 % Phase 1.4
-simScanTest_freqRange = [0.01 0.99]; % from distribution
+simScanTest_freqRange = simPowerTest_freqPoints([1 end]); % from distribution
 simScanTest_freqSpacing = [0.25 0.5 1];
 simScanTest_effectPower = [1 2 4]; % mult
 simScanTest_minTime = [0.5 1]; % mult 
@@ -201,6 +206,8 @@ simScanTest_inact_1 = []; % many possible...
 % Phase 2.1
 
 % Phase 2.2
+
+
 
 % Make simulated plots
 freqRange = min(simFreqTest_freqs):0.2:max(simFreqTest_freqs);
@@ -229,13 +236,15 @@ for i = 1:length(freqRange)
   [~, safeRef(i,4)] = min(abs(powerRange - safePower));
 end
 
-% Phase 1.1
+
+
+% Phase 1.1 - frequency
 simFreqTest_inact = curveMax*exp(-(simFreqTest_freqs-curveCenter).^2/(2*curveSpread^2));
 
 interpInactFreq = interp1(simFreqTest_freqs, simFreqTest_inact,...
     freqRange, 'linear', 0);
 
-%Place freq inactivation
+%Place freq inactivation in map
 [~, powerInd] = min(abs(powerRange - simFreqTest_power));
 inactImage(:, powerInd) = interpInactFreq/100;
 
@@ -247,14 +256,14 @@ end
 figure;
 subplot(1,3,1); hold on
 plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2)-(100-curveMax), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
-plot(simFreqTest_freqs, simFreqTest_inact, 'r-x', 'linewidth', 2, 'markersize', 8)
+plot(simFreqTest_freqs, simFreqTest_inact, 'rx', 'linewidth', 2, 'markersize', 8)
 xlim([1 20]); ylim([0 100])
 
 % fit curve
 fittedCurve = fit(simFreqTest_freqs', simFreqTest_inact', 'gauss1');
 curveInact = fittedCurve.a1*exp(-((freqRangeFine-fittedCurve.b1)/fittedCurve.c1).^2);
 
-plot(freqRangeFine, curveInact, 'b:', 'linewidth', 2);
+plot(freqRangeFine, curveInact, 'r-', 'linewidth', 2);
 
 % take points for other tests
 cdfCurve = cumsum(curveInact)/sum(curveInact);
@@ -264,9 +273,10 @@ for i = 1:length(simPowerTest_freqPoints)
     inds = find(cdfCurve > simPowerTest_freqPoints(i));
     
     simPowerTest_freqPoints(i) = freqRangeFine(inds(1));
+    
+    plot(simPowerTest_freqPoints(i), fittedCurve.a1*exp(-((simPowerTest_freqPoints(i)-fittedCurve.b1)/fittedCurve.c1).^2), ...
+        'o', 'markersize', 10, 'linewidth', 2, 'color', powerCols(i,:))
 end
-
-plot(simPowerTest_freqPoints, fittedCurve.a1*exp(-((simPowerTest_freqPoints-fittedCurve.b1)/fittedCurve.c1).^2), 'go', 'markersize', 10, 'linewidth', 2)
 
 % Time test
 for i = 1:length(simTimeTest_freqPoints)
@@ -283,7 +293,6 @@ for i = 1:length(simScanTest_freqRange)
 end
 
 % show image
-
 subplot(1,3,2); hold on
 imshow(inactImage');
 
@@ -299,40 +308,150 @@ plot(1:length(freqRange), safeRef(:,2), 'g', 'linewidth', 2)
 plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
 plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
-%% Phase 1.2
 
-warning('Need to calcualte proper factorial')
 
+% Phase 1.2 - power
 figure; 
-subplot(1,2,1); hold on
-% sigmoidal example
-for i = 1:length(simPowerTest_freqPoints)
-    curveVal = curveMax*exp(-(simPowerTest_freqPoints(i)-curveCenter).^2/(2*curveSpread^2)) * sigAmpOffset(i);
-    
-    simPowerTest_inact_1 = 1./(1+exp(-(simPowerTest_power-sigCentre)*sigSlope)) * curveVal;
 
-    plot(simPowerTest_power, simPowerTest_inact_1, 'x')
+simPowerTest_inact_1 = zeros(length(simPowerTest_freqPoints), length(simPowerTest_power));
+simPowerTest_inact_2 = zeros(length(simPowerTest_freqPoints), length(simPowerTest_power));
+
+for i = 1:length(simPowerTest_freqPoints)
+    % sigmoidal example
+    curveVal = curveMax*exp(-(simPowerTest_freqPoints(i)-curveCenter).^2/(2*curveSpread^2)) * powerAmpOffset(i);
+    
+    simPowerTest_inact_1(i,:) = 1./(1+exp(-(simPowerTest_power-powerCentre)*powerSlope)) * curveVal;
+
+    subplot(1,4,1); hold on
+    plot(simPowerTest_power, simPowerTest_inact_1(i,:), 'o', 'color', powerCols(i,:))
+    
+    % step-up example
+    
+    temp = simPowerTest_inact_1(i,:);
+    
+    temp(simPowerTest_power < stepMin(i)) = 0;
+    
+    simPowerTest_inact_2(i,:) = temp;
+    
+    subplot(1,4,2); hold on
+    plot(simPowerTest_power, simPowerTest_inact_2(i,:), 'o', 'color', powerCols(i,:))
 end
 
-plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+subplot(1,4,1); hold on
+plot(dataInactPower2016(:,1), dataInactPower2016(:,2), '-o', 'linewidth',2, 'color', [0.5 0.5 0.5])
 xlim([0 100]); ylim([0 50])
 
-% step-up example
-subplot(1,2,2); hold on
-for i = 1:length(simPowerTest_freqPoints)
-    curveVal = curveMax*exp(-(simPowerTest_freqPoints(i)-curveCenter).^2/(2*curveSpread^2)) * sigAmpOffset(i);
-    
-    simPowerTest_inact_2 = 1./(1+exp(-(simPowerTest_power-sigCentre)*sigSlope)) * curveVal;
-    
-    simPowerTest_inact_2(simPowerTest_power < stepMin) = 0;
+subplot(1,4,2); hold on
+plot(dataInactPower2016(:,1), dataInactPower2016(:,2), '-', 'linewidth', 2, 'color', [0.5 0.5 0.5])
+xlim([0 100]); ylim([0 50])
 
-    plot(simPowerTest_power, simPowerTest_inact_2, 'x')
+% Place sigmoidal in map
+[~, minPowerInd] = min(abs(powerRange - simPowerTest_power(1)));
+[~, maxPowerInd] = min(abs(powerRange - simPowerTest_power(end)));
+
+freqIndArray = zeros(length(simPowerTest_freqPoints), 1);
+powerRefArray = zeros(length(simPowerTest_power), 1);
+
+for i = 1:length(simPowerTest_freqPoints)
+    
+    interpInactPower = interp1(simPowerTest_power, simPowerTest_inact_1(i,:),...
+        powerRange(minPowerInd:maxPowerInd), 'linear', 0);
+
+    % Place power inativation
+    [~, freqIndArray(i)] = min(abs(freqRange - simPowerTest_freqPoints(i)));
+    inactImage(freqIndArray(i), minPowerInd:maxPowerInd) = interpInactPower/100;
+    
 end
 
-plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
-xlim([0 100]); ylim([0 50])
+for i = 1:length(simPowerTest_power)
+   [~, powerRefArray(i)] = min(abs(powerRange - simPowerTest_power(i))); 
+end
 
-warning('Need to add map')
+warning('Need to calculate minimum effective power given replicates')
 
-%% Phase 1.3
-%Times...
+% Temp solution
+minEffPower = stepMin;
+
+%%% Also want to plot on graphs and map (use line)
+
+% Show image
+subplot(1,4,3); hold on
+imshow(inactImage');
+
+for i = 1:length(simPowerTest_freqPoints)
+    for j = 1:length(simPowerTest_power)
+    plot(freqIndArray(i), powerRefArray(j), 'o', 'markersize', 8, 'linewidth', 2, 'color', powerCols(i,:))
+    end
+end
+
+plot(freqRef, powerInd, 'rx', 'markersize', 8, 'linewidth', 2)
+
+% Set up colors
+cols = gray(101);
+cols(1,:) = [0.2, 0, 0];
+colormap(cols)
+
+plot(1:length(freqRange), safeRef(:,1), 'b', 'linewidth', 2)
+plot(1:length(freqRange), safeRef(:,2), 'g', 'linewidth', 2)
+plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
+plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
+
+
+
+%% Phase 1.3 - time
+simTimesTest_inact_1 = zeros(length(simTimeTest_freqPoints), length(simTimeTest_effectPower), length(simTimeTest_times));
+
+simTimesTest_inact_2 = zeros(length(simTimeTest_freqPoints), length(simTimeTest_effectPower), length(simTimeTest_times));
+
+referenceInact = zeros(length(simTimeTest_freqPoints), length(simTimeTest_effectPower));
+
+% Plot absolute values
+figure;
+
+for i = 1:length(simTimeTest_freqPoints)
+    curveVal = curveMax*exp(-(simTimeTest_freqPoints(i)-curveCenter).^2/(2*curveSpread^2)) * powerAmpOffset(i);
+    
+    for j = 1:length(simTimeTest_effectPower)
+        minPowerVal = 1./(1+exp(-(minEffPower(i)*simTimeTest_effectPower(j)-powerCentre)*powerSlope)) * curveVal;
+
+        % Case 1, no effect of power
+        simTimesTest_inact_1(i,j,:) = minPowerVal*(-1 + 2./(1+exp(-(simTimeTest_times)*timeSlope*timeSlopeOffset(i))));
+        
+        % Case 2, some effect of power
+        simTimesTest_inact_2(i,j,:) = minPowerVal*(-1 + 2./(1+exp(-(simTimeTest_times)*timeSlope*timeSlopeOffset(i)*powerSlopeOffset(j))));
+        
+        referenceInact(i,j) = minPowerVal;
+        
+        subplot(2,3,j); hold on
+        plot(log10(simTimeTest_times), permute(simTimesTest_inact_1(i,j,:),[3 1 2]), '*', 'color', powerCols(i,:))
+        plot(log10(simPowerTest_time), minPowerVal, 'o', 'color', powerCols(i,:));
+        
+        subplot(2,3, 3+j); hold on
+        plot(log10(simTimeTest_times), permute(simTimesTest_inact_2(i,j,:),[3 1 2]), '*', 'color', powerCols(i,:))
+        plot(log10(simPowerTest_time), minPowerVal, 'o', 'color', powerCols(i,:));
+    end
+end
+
+% Plot relative values
+figure;
+for i = 1:length(simTimeTest_freqPoints)
+    for j = 1:length(simTimeTest_effectPower)
+        subplot(2,3,j); hold on
+        plot(log10(simTimeTest_times), permute(simTimesTest_inact_1(i,j,:),[3 1 2])/referenceInact(i,j), '*', 'color', powerCols(i,:))
+        plot(log10(simPowerTest_time), 1, 'o', 'color', powerCols(i,:));
+        
+        subplot(2,3, 3+j); hold on
+        plot(log10(simTimeTest_times), permute(simTimesTest_inact_2(i,j,:),[3 1 2])/referenceInact(i,j), '*', 'color', powerCols(i,:))
+        plot(log10(simPowerTest_time), 1, 'o', 'color', powerCols(i,:));
+        
+    end
+end
+
+%%% Note, these are log plots, change x axis
+
+%%% Get these from relative values
+% EffTime_100p
+% 
+% EffTime_50p
+
+%%% Following this - plot effective time for two cases. 
