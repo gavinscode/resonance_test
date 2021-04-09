@@ -24,8 +24,14 @@ powerCols = cool(length(simPowerTest_powers));
 
 % Interpolated to an s-curve
 %%% would be simpler to just do with a sigmoid to keep things analytical
-powerRootFreqs = [3 6 8.5 8.5+2.5 8.5+5.5]; % update if spread changed
-powerRootMinimum = 55*[1.5 1.3 0.9 0.7 0.4];
+powerThresholdFreqs = [3 6 8.5 8.5+2.5 8.5+5.5]; % update if spread changed
+powerThreshold = 55*[1.5 1.3 0.9 0.7 0.4];
+
+useWeibullPower = 1;
+
+powerWeibullGamma = 0; %Offset
+powerWeibullBeta = 0.1; % Slope?
+powerWeibullAlpha = 0.4; % Shape
 
 powerRootExp = 0.4;
 powerRootMax = 810; %%% Set so that curve hits max value around influenza
@@ -63,18 +69,24 @@ simFreqTest_inact = zeros(length(simFreqTest_freqs), nReps);
 simFreqTest_FreqRef = zeros(length(simFreqTest_freqs), nReps);
 
 % Get matched roots across freq
-powerRootMin_matched_freqTest = interp1(powerRootFreqs, powerRootMinimum, simFreqTest_freqs, 'linear',0);
-powerRootMin_matched_freqTest(powerRootMin_matched_freqTest == 0) = interp1(powerRootFreqs, powerRootMinimum, ...
-    simFreqTest_freqs(powerRootMin_matched_freqTest == 0), 'nearest','extrap');
+powerThresholdInterp_freqTest = interp1(powerThresholdFreqs, powerThreshold, simFreqTest_freqs, 'linear',0);
+powerThresholdInterp_freqTest(powerThresholdInterp_freqTest == 0) = interp1(powerThresholdFreqs, powerThreshold, ...
+    simFreqTest_freqs(powerThresholdInterp_freqTest == 0), 'nearest','extrap');
 
 for i = 1:length(simFreqTest_freqs)
 
     curveVal = curveMax*exp(-(simFreqTest_freqs(i)-curveCenter).^2/(2*curveSpread^2));
     
     % Will always be above on this phase, but keep for consistancy
-    if simFreqTest_power > powerRootMin_matched_freqTest(i)
-        simFreqTest_inact(i,:) = ((simFreqTest_power-powerRootMin_matched_freqTest(i))/powerRootMax)^powerRootExp *curveVal + ...
-            absStd*randn(nReps,1); % 
+    if simFreqTest_power > powerThresholdInterp_freqTest(i)
+        if useWeibullPower
+            powerVal = powerWeibullGamma + (1-powerWeibullGamma)*(1-exp(-powerWeibullBeta * ...
+                (simFreqTest_power-powerThresholdInterp_freqTest(i))^powerWeibullAlpha));
+        else
+            powerVal = ((simFreqTest_power-powerThresholdInterp_freqTest(i))/powerRootMax)^powerRootExp; % 
+        end
+        
+        simFreqTest_inact(i,:) = powerVal * curveVal + absStd*randn(nReps,1);
     else
         simFreqTest_inact(i,:) = absStd*randn(nReps,1); %
     end
@@ -170,9 +182,9 @@ simPowerTest_freqRef = zeros(length(simPowerTest_freqs), length(simPowerTest_pow
 simPowerTest_powerRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 
 % Get matched roots across freq
-powerRootMin_matched_powerTest = interp1(powerRootFreqs, powerRootMinimum, simPowerTest_freqs, 'linear',0);
-powerRootMin_matched_powerTest(powerRootMin_matched_powerTest == 0) = interp1(powerRootFreqs, powerRootMinimum, ...
-    simPowerTest_freqs(powerRootMin_matched_powerTest == 0), 'nearest','extrap');
+powerThresholdInterp_powerTest = interp1(powerThresholdFreqs, powerThreshold, simPowerTest_freqs, 'linear',0);
+powerThresholdInterp_powerTest(powerThresholdInterp_powerTest == 0) = interp1(powerThresholdFreqs, powerThreshold, ...
+    simPowerTest_freqs(powerThresholdInterp_powerTest == 0), 'nearest','extrap');
 
 for i = 1:length(simPowerTest_freqs)
 
@@ -180,9 +192,15 @@ for i = 1:length(simPowerTest_freqs)
     
     for j = 1:length(simPowerTest_powers)
 
-        if simPowerTest_powers(j) > powerRootMin_matched_powerTest(i)
-            simPowerTest_inact(i,j,:) = ((simPowerTest_powers(j)-powerRootMin_matched_powerTest(i))/powerRootMax)^powerRootExp *curveVal + ...
-                absStd*randn(nReps,1); % 
+        if simPowerTest_powers(j) > powerThresholdInterp_powerTest(i)
+            if useWeibullPower
+                powerVal = powerWeibullGamma + (1-powerWeibullGamma)*(1-exp(-powerWeibullBeta * ...
+                    (simPowerTest_powers(j)-powerThresholdInterp_powerTest(i))^powerWeibullAlpha));
+            else
+                powerVal = ((simPowerTest_powers(j)-powerThresholdInterp_powerTest(i))/powerRootMax)^powerRootExp; % 
+            end
+            
+            simPowerTest_inact(i,j,:) = powerVal * curveVal + absStd*randn(nReps,1);
         else
             simPowerTest_inact(i,j,:) = absStd*randn(nReps,1); %
         end
@@ -218,7 +236,7 @@ for i = fliplr(1:length(simPowerTest_powers))
         power_curveConfidence = predint(powerCurve, freqRangeFine, 0.95, 'Functional');
         power_curveObserved = predint(powerCurve, freqRangeFine, 0.95, 'obs');
         
-        plot(freqRangeFine, power_curveConfidence, '--', 'color', powerCols(i,:))
+%         plot(freqRangeFine, power_curveConfidence, '--', 'color', powerCols(i,:))
     end
 end
 
