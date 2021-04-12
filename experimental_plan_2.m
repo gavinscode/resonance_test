@@ -17,7 +17,8 @@ curveSpread = 2.3;
 % Phase 1.2
 simPowerTest_inactLimit = 1; % from height of prediction bound, will be on min and max
 simPowerTest_freqSpacing = 2;
-simPowerTest_powers = [10 25 50 75 100 200 400];
+% not sure of best spacing to use hear...
+simPowerTest_powers = round(10.^(1.5:0.25:2.75));
 simPowerTest_time = simFreqTest_time;
 
 powerCols = cool(length(simPowerTest_powers));
@@ -25,13 +26,18 @@ powerCols = cool(length(simPowerTest_powers));
 % Interpolated to an s-curve
 %%% would be simpler to just do with a sigmoid to keep things analytical
 powerThresholdFreqs = [3 6 8.5 8.5+2.5 8.5+5.5]; % update if spread changed
-powerThreshold = 55*[1.5 1.3 0.9 0.7 0.4];
+powerThreshold = 50*[1.5 1.3 0.9 0.7 0.4];
 
 useWeibullPower = 1;
 
-powerWeibullGamma = 0; %Offset
-powerWeibullBeta = 0.1; % Slope?
-powerWeibullAlpha = 0.4; % Shape
+% Manual switch between ... 
+% For full valued expression
+powerWeibullAlpha = 0.008; % Scale
+powerWeibullBeta = 0.9; % Shape
+
+% For log 10 expression - not well scaled...
+powerWeibullAlpha = 2.5; % Scale
+powerWeibullBeta = 1.75; % Shape
 
 powerRootExp = 0.4;
 powerRootMax = 810; %%% Set so that curve hits max value around influenza
@@ -41,6 +47,7 @@ powerRootMax = 810; %%% Set so that curve hits max value around influenza
 freqRange = min(simFreqTest_freqs):0.2:max(simFreqTest_freqs);
 freqRangeFine = 0:0.05:max(simFreqTest_freqs);
 powerRange = 0:10:1000;
+powerRangeFine = 0:1:1000;
 
 inactImage = zeros(length(freqRange), length(powerRange));
 
@@ -80,8 +87,8 @@ for i = 1:length(simFreqTest_freqs)
     % Will always be above on this phase, but keep for consistancy
     if simFreqTest_power > powerThresholdInterp_freqTest(i)
         if useWeibullPower
-            powerVal = powerWeibullGamma + (1-powerWeibullGamma)*(1-exp(-powerWeibullBeta * ...
-                (simFreqTest_power-powerThresholdInterp_freqTest(i))^powerWeibullAlpha));
+            powerVal = (1-exp(-powerWeibullAlpha * ...
+                ((log10(simFreqTest_power)-log10(powerThresholdInterp_freqTest(i))))^powerWeibullBeta));
         else
             powerVal = ((simFreqTest_power-powerThresholdInterp_freqTest(i))/powerRootMax)^powerRootExp; % 
         end
@@ -103,7 +110,7 @@ freq_curveObserved = predint(freqCurve, freqRangeFine, 0.95, 'obs');
 
 % Get inactivation limits
 tempInds = find(freq_curveConfidence(:,1) > simPowerTest_inactLimit);
-freqLimitsPowers = freq_curveConfidence(tempInds([1 end]),1);
+freqLimitsInact = freq_curveConfidence(tempInds([1 end]),1);
 tempFreqs = [freqRangeFine(tempInds(1)) freqRangeFine(tempInds(end))];
 
 simPowerTest_FreqLimits = [floor(tempFreqs(1)) ceil(tempFreqs(2))];
@@ -140,8 +147,8 @@ plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 plot(freqRangeFine, freq_curveConfidence, 'r--', 'linewidth', 2);
 % plot(freqRangeFine, freq_curveObserved, 'r:', 'linewidth', 2)
 
-plot(tempFreqs(1), freqLimitsPowers(1), 'cx', 'markersize', 8, 'linewidth', 2);
-plot(tempFreqs(2), freqLimitsPowers(2), 'cx', 'markersize', 8, 'linewidth', 2);
+plot(tempFreqs(1), freqLimitsInact(1), 'cx', 'markersize', 8, 'linewidth', 2);
+plot(tempFreqs(2), freqLimitsInact(2), 'cx', 'markersize', 8, 'linewidth', 2);
 
 % show image
 %Place freq inactivation in map
@@ -192,10 +199,11 @@ for i = 1:length(simPowerTest_freqs)
     
     for j = 1:length(simPowerTest_powers)
 
-        if simPowerTest_powers(j) > powerThresholdInterp_powerTest(i)
+        if simPowerTest_powers(j) > (powerThresholdInterp_powerTest(i) + 1)
             if useWeibullPower
-                powerVal = powerWeibullGamma + (1-powerWeibullGamma)*(1-exp(-powerWeibullBeta * ...
-                    (simPowerTest_powers(j)-powerThresholdInterp_powerTest(i))^powerWeibullAlpha));
+                powerVal = (1-exp(-powerWeibullAlpha * ...
+                    ((log10(simPowerTest_powers(j))-log10(powerThresholdInterp_powerTest(i))))^powerWeibullBeta));
+
             else
                 powerVal = ((simPowerTest_powers(j)-powerThresholdInterp_powerTest(i))/powerRootMax)^powerRootExp; % 
             end
@@ -211,11 +219,13 @@ for i = 1:length(simPowerTest_freqs)
 end
 
 figure; 
-subplot(1,2,1); hold on
 
-opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 freqCurve.c1/2], 'Upper', [freqCurve.a1 freqCurve.b1 freqCurve.c1*1.5]);
+opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 freqCurve.c1/2], 'Upper', [freqCurve.a1*1.5 freqCurve.b1 freqCurve.c1*1.5]);
 
 for i = fliplr(1:length(simPowerTest_powers))
+    
+    subplot(2,7,1); hold on
+    
     tempFreqs = simPowerTest_freqRef(:,i,:);
     tempInacts = simPowerTest_inact(:,i,:);
     
@@ -223,35 +233,102 @@ for i = fliplr(1:length(simPowerTest_powers))
 
     if i ~= length(simPowerTest_powers)
         % Take limits from precedding
+        %%% Do something similar for power fit, but reference to top power.
+            %%% maybe sample that more densely
+        
         opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 powerCurve.c1/2], 'Upper', [powerCurve.a1 freqCurve.b1 powerCurve.c1]);
     end
         
     powerCurve = fit(tempFreqs(:), tempInacts(:), 'gauss1', opts);
 
+    if i == length(simPowerTest_powers)
+       topCurve =  powerCurve;
+    end
+    
     power_curveInact = powerCurve(freqRangeFine);
     
     plot(freqRangeFine, power_curveInact, 'color', powerCols(i,:))
         
-    if powerCurve.a1 > 10^-3
+    if all( all( ~isnan( confint(powerCurve))))
         power_curveConfidence = predint(powerCurve, freqRangeFine, 0.95, 'Functional');
         power_curveObserved = predint(powerCurve, freqRangeFine, 0.95, 'obs');
         
 %         plot(freqRangeFine, power_curveConfidence, '--', 'color', powerCols(i,:))
     end
+    
+    % get freq bounds
+    subplot(2,7,2); hold on
+    
+    tempInds = find(power_curveInact > simPowerTest_inactLimit);
+    if ~isempty(tempInds)
+        tempInactLimits = power_curveInact(tempInds([1 end]));
+        tempFreqs = [freqRangeFine(tempInds(1)) freqRangeFine(tempInds(end))];
+
+        plot(tempFreqs(1), simPowerTest_powers(i), 'x', 'markersize', 8, 'linewidth', 2, 'color', powerCols(i,:));
+        plot(tempFreqs(2), simPowerTest_powers(i), 'x', 'markersize', 8, 'linewidth', 2, 'color', powerCols(i,:));
+    end
 end
+
+subplot(2,7,1); hold on
 
 plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2) - (100-freqCurve.a1), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
 plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 xlim([0 20]); ylim([0 100])
 
-subplot(1,2,2); hold on
 
-tempPowers = simPowerTest_powerRef(centrePowerInd,:,:);
-tempInacts = simPowerTest_inact(centrePowerInd,:,:);
+for i = 1:length(simPowerTest_freqs)
+    subplot(2,7,7+i); hold on
+    
+    tempPowers = simPowerTest_powerRef(i,:,:);
+    tempInacts = simPowerTest_inact(i,:,:);
 
-plot(permute(tempPowers, [2 3 1]), permute(tempInacts, [2 3 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', 'r')
-plot(simFreqTest_power, simFreqTest_inact(centreFreqInd_nearest,:), 'rd', 'linewidth', 2, 'markersize', 4)
+    plot(log10(permute(tempPowers, [2 3 1])), permute(tempInacts, [2 3 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', 'r')
 
-plot(dataInactPower2016(:,1), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-
-xlim([0 1000]); ylim([0 100])
+    if i == centrePowerInd
+        plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
+    end
+    
+    offSetValue = topCurve(simPowerTest_freqs(i));
+   
+    
+    weibullFit=fittype('(x>c)*(1-exp(-a*((x-c))^b))',...
+             'coefficients',{'a','b','c'},'independent','x');
+    
+    opts = fitoptions(weibullFit);
+    opts.Lower = [0.5 0.5 0];
+    opts.Upper = [5 4 log10(100)];
+    opts.StartPoint = [1 1 log10(50)];
+    
+    weibullCurve = fit(log10(tempPowers(:)), tempInacts(:)./offSetValue, weibullFit, opts);
+    
+    power_curveInact = weibullCurve(log10(powerRangeFine))*offSetValue;
+    power_coefBound = confint(weibullCurve);
+    
+    plot(log10(powerRangeFine), power_curveInact, 'color', 'r')
+    
+    if all( all( ~isnan( power_coefBound)))
+        power_curveConfidence = predint(weibullCurve, log10(powerRangeFine), 0.95, 'Functional')*offSetValue;
+        power_curveObserved = predint(weibullCurve, log10(powerRangeFine), 0.95, 'obs')*offSetValue;
+        
+        plot(log10(powerRangeFine), power_curveConfidence, '--', 'color', 'r')
+    end
+    
+    xlim([1 3]); ylim([0 100])
+    
+    if power_coefBound(2,3) < 3
+        title(sprintf('%.1f %.1f:%.1f:%.1f', powerThresholdInterp_powerTest(i), 10^power_coefBound(1,3), ...
+            10^weibullCurve.c, 10^power_coefBound(2,3)));
+    else
+        title(sprintf('%.1f', powerThresholdInterp_powerTest(i)));
+    end
+    % Plot ref curve
+    powersToUse = powerRangeFine(powerRangeFine > (powerThresholdInterp_powerTest(i) + 1));
+    
+    curveVal = curveMax*exp(-(simPowerTest_freqs(i)-curveCenter).^2/(2*curveSpread^2));
+    powerVal = (1-exp(-powerWeibullAlpha .* ...
+                    ((log10(powersToUse)-log10(powerThresholdInterp_powerTest(i)))).^powerWeibullBeta));
+    plot(log10(powersToUse), curveVal*powerVal, 'k')
+    
+    subplot(2,7,2); hold on
+    line([1 1]*simPowerTest_freqs(i), [0 50])
+end
