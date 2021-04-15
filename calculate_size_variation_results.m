@@ -106,7 +106,7 @@ end
 % From Savoit - Lamb calculator using spherical, L=1, N=0 (1 on page)
     % https://saviot.cnrs.fr/lamb/index.html
     % Set Vl=1434 and Vt=717 from trial and error so 100 nm freq = 8.2 GHz
-    % Not much lower than lower end on 2009 paper
+    % Note: much lower than lower end on 2009 paper
     
 valuesFrequncy_virus_hz = [10.943; 10.259; 9.655; 9.119; 8.639; 8.207; 7.816; ...
     7.461; 7.137; 6.839; 6.566]*10^9;

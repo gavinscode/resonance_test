@@ -1,5 +1,24 @@
 compare_influenza_data
 
+influenzaSize_mean = 100*10^-9;
+influenzaSize_std = 20*10^-9/3; % Assume limits are at 3 standard deviations
+
+%%% Should adjust this based on freq found
+
+influenzaVl = 1486; % Just matched in Saviot tool
+influenzaVt = 743; %given x2 ratio
+
+influenzaSize_samples = randn(500,1)*influenzaSize_std + influenzaSize_mean;
+
+[influenzaSize_dist, influenzaSize_x] = hist(influenzaSize_samples,20);
+
+influenzSize_resonances = zeros(length(influenzaSize_x),1);
+
+for i = 1:length(influenzaSize_x)
+    influenzSize_resonances(i) = calcualtesphereresonance(influenzaSize_x(i)/2, ...
+                'sph', 1, 0, influenzaVl, influenzaVt, 10^9, 10^6, 0)/10^9;
+end
+
 %%% second plan - fitting curves for power and point for time
 
 nReps = 3;
@@ -7,7 +26,7 @@ absStd= 5; % std on absolute, not relative values (lower SNR on low inactiviatio
 
 % Phase 1.1 - also want to fit function to get peak 
 simFreqTest_freqs = 1:1:20;
-simFreqTest_power = 750;
+simFreqTest_power = 630;
 simFreqTest_time = 1000;
 
 curveMax = 100;
@@ -16,17 +35,20 @@ curveSpread = 2.3;
 
 % Phase 1.2
 simPowerTest_inactLimit = 1; % from height of prediction bound, will be on min and max
+% Better to set frequency test at 75, 50, 25 etc.
 simPowerTest_freqSpacing = 2;
 % not sure of best spacing to use hear...
-simPowerTest_powers = round(10.^(1.5:0.25:2.75));
+simPowerTest_powers = round(10.^([1:0.1:2, 2.5]))
 simPowerTest_time = simFreqTest_time;
 
 powerCols = cool(length(simPowerTest_powers));
 
 % Interpolated to an s-curve
 %%% would be simpler to just do with a sigmoid to keep things analytical
+% Start with flat cut off
+% Skew should be placed across range of size distribution, not inactivaiton
 powerThresholdFreqs = [3 6 8.5 8.5+2.5 8.5+5.5]; % update if spread changed
-powerThreshold = 60*[1.5 1.3 0.9 0.7 0.4];
+powerThreshold = 60*[1 1 1 1 1]; 60*[1.5 1.3 0.9 0.7 0.4];
 
 useWeibullPower = 1;
 
@@ -42,8 +64,8 @@ powerWeibullAlpha = 1.5; % Scale %2.5
 powerWeibullBeta = 1.75; % Shape %1.75
 
 % Linear expression - note this is log10 of power
-powerLinearA = 0.7;
-powerLinearB = -1.05;
+powerLinearA = 0.709;
+powerLinearB = -1.08;
 
 powerRootExp = 0.4;
 powerRootMax = 810; %%% Set so that curve hits max value around influenza
@@ -52,8 +74,8 @@ powerRootMax = 810; %%% Set so that curve hits max value around influenza
 % Set up image
 freqRange = min(simFreqTest_freqs):0.2:max(simFreqTest_freqs);
 freqRangeFine = 0:0.05:max(simFreqTest_freqs);
-powerRange = 0:10:1000;
-powerRangeFine = 0:1:1000;
+powerRange = round(10.^(0:0.05:3)); 0:10:1000;
+powerRangeFine = round(10.^(0:0.005:3)); % 0:1:1000; 
 
 inactImage = zeros(length(freqRange), length(powerRange));
 
@@ -79,7 +101,9 @@ end
 
 %% Phase 1.1 - frequency
 simFreqTest_inact = zeros(length(simFreqTest_freqs), nReps);
+simFreqTest_inactRef = zeros(length(simFreqTest_freqs), nReps);
 simFreqTest_FreqRef = zeros(length(simFreqTest_freqs), nReps);
+simFreqTest_PowerRef = ones(length(simFreqTest_freqs), nReps)*simFreqTest_power;
 
 % Get matched roots across freq
 powerThresholdInterp_freqTest = interp1(powerThresholdFreqs, powerThreshold, simFreqTest_freqs, 'linear',0);
@@ -99,10 +123,12 @@ for i = 1:length(simFreqTest_freqs)
 %             powerVal = ((simFreqTest_power-powerThresholdInterp_freqTest(i))/powerRootMax)^powerRootExp; % 
 %         end
         
-        powerVal = powerLinearA*log10(simFreqTest_power)+powerLinearB;
+        powerVal = powerLinearA*(log10(simFreqTest_power-powerThresholdInterp_freqTest(i)))+powerLinearB;
         totalVal = powerVal * curveVal;
         totalVal(totalVal > 100) = 100;
+        totalVal(totalVal < 0) = 0;
         
+        simFreqTest_inactRef(i,:) = totalVal;
         simFreqTest_inact(i,:) = totalVal + absStd*randn(nReps,1);
     else
         simFreqTest_inact(i,:) = absStd*randn(nReps,1); %
@@ -111,8 +137,13 @@ for i = 1:length(simFreqTest_freqs)
     simFreqTest_FreqRef(i,:) = simFreqTest_freqs(i);
 end
 
+% Can't be greater than 100
+simFreqTest_inact(simFreqTest_inact > 100) = 100;
+
 % fit curve
-freqCurve = fit(simFreqTest_FreqRef(:), simFreqTest_inact(:), 'gauss1');
+opts = fitoptions('gauss1', 'Lower', [0 1 0], 'Upper', [100 20 10]);
+
+freqCurve = fit(simFreqTest_FreqRef(:), simFreqTest_inact(:), 'gauss1', opts);
 
 freq_curveInact = freqCurve(freqRangeFine);
 freq_curveConfidence = predint(freqCurve, freqRangeFine, 0.95, 'Functional');
@@ -149,16 +180,18 @@ centrePowerInd = find(simPowerTest_freqs == centreFreq);
 
 figure;
 subplot(1,3,1); hold on
-plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2) - (100-freqCurve.a1), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
 plot(simFreqTest_FreqRef(:), simFreqTest_inact(:), 'rd', 'linewidth', 2, 'markersize', 4)
-xlim([1 20]); ylim([0 100])
+xlim([1 20]); ylim([-10 110])
 
 plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 plot(freqRangeFine, freq_curveConfidence, 'r--', 'linewidth', 2);
 % plot(freqRangeFine, freq_curveObserved, 'r:', 'linewidth', 2)
 
-plot(tempFreqs(1), freqLimitsInact(1), 'cx', 'markersize', 8, 'linewidth', 2);
-plot(tempFreqs(2), freqLimitsInact(2), 'cx', 'markersize', 8, 'linewidth', 2);
+% plot(simFreqTest_FreqRef(:,1), simFreqTest_inactRef(:,1), 'm-')
+
+% plot(tempFreqs(1), freqLimitsInact(1), 'cx', 'markersize', 8, 'linewidth', 2);
+% plot(tempFreqs(2), freqLimitsInact(2), 'cx', 'markersize', 8, 'linewidth', 2);
 
 % show image
 %Place freq inactivation in map
@@ -176,6 +209,9 @@ for i = 1:length(simFreqTest_freqs)
    [~, freqRef(i)] = min(abs(freqRange - simFreqTest_freqs(i)));
 end
 
+% Show resonance distribution
+plot(influenzSize_resonances, influenzaSize_dist, '-b', 'linewidth', 2)
+
 subplot(1,3,2); hold on
 imshow(inactImage');
 
@@ -191,10 +227,40 @@ plot(1:length(freqRange), safeRef(:,2), 'g', 'linewidth', 2)
 plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
 plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
+%%% Test deconvolution - difference ends up basically <1% - too small...
+subplot(1,3,3); hold on
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
+% xlim([1 20]); ylim([-10 110])
 
+freqCurve_scaled = freqCurve;
+freqCurve_scaled.a1 = 1;
+
+freq_curveInact_scaled = freqCurve_scaled(freqRangeFine);
+
+% Interpolate influenza to same spacing
+influenzaSize_res_fine = influenzSize_resonances;
+influenzaSize_res_fine(influenzaSize_res_fine < min(influenzSize_resonances) |...
+    influenzaSize_res_fine > max(influenzSize_resonances)) = [];
+influenzaDist_fine = interp1(influenzSize_resonances, influenzaSize_dist, influenzaSize_res_fine, 'linear'); 
+influenzaDist_fine = influenzaDist_fine/sum(influenzaDist_fine);
+
+plot(freqRangeFine, freq_curveInact_scaled, 'r-', 'linewidth', 2);
+
+inactFn = conv(freq_curveInact_scaled, influenzaDist_fine,'same')/sum(influenzaDist_fine);
+% inactFn = conv(influenzaDist_fine, freq_curveInact_scaled, 'full')/sum(freq_curveInact_scaled);
+% plot(inactFn, 'm-')
+
+plot(influenzaSize_res_fine, influenzaDist_fine/max(influenzaDist_fine)*100, 'b-')
+
+plot(freqRangeFine(1:length(inactFn)), inactFn, 'm-')
+
+% difference shows conv has little effect.
+figure;
+plot(freq_curveInact_scaled - inactFn)
 
 %% Phase 1.2 - power
 simPowerTest_inact = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
+simPowerTest_inactRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_freqRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_powerRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 
@@ -217,10 +283,13 @@ for i = 1:length(simPowerTest_freqs)
 %                 powerVal = ((simPowerTest_powers(j)-powerThresholdInterp_powerTest(i))/powerRootMax)^powerRootExp; % 
 %             end
 
-            powerVal = powerLinearA*log10(simPowerTest_powers(j))+powerLinearB;
+            powerVal = powerLinearA*(log10(simPowerTest_powers(j)-powerThresholdInterp_powerTest(i)))+powerLinearB;
             totalVal = powerVal * curveVal;
             totalVal(totalVal > 100) = 100;     
+            totalVal(totalVal < 0) = 0;
 
+            simPowerTest_inactRef(i,j,:) = totalVal;
+            
             simPowerTest_inact(i,j,:) = totalVal + absStd*randn(nReps,1);
         else
             simPowerTest_inact(i,j,:) = absStd*randn(nReps,1); %
@@ -231,9 +300,85 @@ for i = 1:length(simPowerTest_freqs)
     end
 end
 
+simPowerTest_inact(simPowerTest_inact > 100) = 100;
+
+%%% Maybe just use this where freq is between power refs
+freqsToUse = find(simFreqTest_FreqRef >= simPowerTest_freqs(1) &  simFreqTest_FreqRef <= simPowerTest_freqs(end));
+[testFreq, testPower] = meshgrid(freqRange, powerRange);
+
+fit2D = scatteredInterpolant([simPowerTest_freqRef(:)' simFreqTest_FreqRef(freqsToUse)']', log10([simPowerTest_powerRef(:)', simFreqTest_PowerRef(freqsToUse)']'),...
+    [simPowerTest_inact(:)', simFreqTest_inact(freqsToUse)']','linear','none');
+
+interpData = fit2D(testFreq, log10(testPower));
+interpData(isnan(interpData(:))) = 0;
+% 
+% fit2D = fit([[simPowerTest_freqRef(:)' simFreqTest_FreqRef(freqsToUse)']', log10([simPowerTest_powerRef(:)', simFreqTest_PowerRef(freqsToUse)']')],...
+%     [simPowerTest_inact(:)', simFreqTest_inact(freqsToUse)']','lowess');
+% 
+% interpData = fit2D(testFreq, log10(testPower));
+
+% try gaussian kernel
+% interpData = ksrmv([simPowerTest_freqRef_2, log10(simPowerTest_powerRef_2)], simPowerTest_inact_2); %, [], [testFreq(:), testPower(:)]);
+% interpData.h
+% interpData = ksrmv([simPowerTest_freqRef_2, log10(simPowerTest_powerRef_2)], simPowerTest_inact_2,...
+%     interpData.h/4, [testFreq(:), log10(testPower(:))]);
+% 
+% interpData = reshape(interpData.f, size(testFreq));
+
+%%% Get sigma from original... 
+%%% Add middle curve in.
+% gkrModel = fitrgp([[simPowerTest_freqRef(:)' simFreqTest_FreqRef(freqsToUse)']', log10([simPowerTest_powerRef(:)', simFreqTest_PowerRef(freqsToUse)']')], ...
+%     [simPowerTest_inact(:)', simFreqTest_inact(freqsToUse)']')
+% 
+% [interpData,ysd,yint] = predict(gkrModel, [testFreq(:), log10(testPower(:))]);
+
+
+figure;
+subplot(1,3,2)
+plotData = reshape(interpData, size(testFreq));
+imshow(plotData/100); hold on
+pause(0.1)
+
+lowPoints = find(plotData < 1);
+[lowX, lowY] = ind2sub(size(plotData), lowPoints);
+
+plot(lowY, lowX, '.r')
+
+freqRef = zeros(length(simPowerTest_freqs),1);
+powerRef = zeros(length(simPowerTest_freqs),1);
+
+for i = 1:length(simPowerTest_freqs)
+   [~, freqRef(i)] = min(abs(freqRange - simPowerTest_freqs(i)));
+   [~, powerRef(i)] = min(abs(log10(powerRange) - log10(powerThresholdInterp_powerTest(i))));
+end
+
+plot(freqRef, powerRef, 'm-o')
+
+% plotData = reshape(yint(:,1), size(testFreq));
+subplot(1,3,1)
+imshow(plotData/100); hold on
+pause(0.1)
+
+lowPoints = find(plotData < 2);
+[lowX, lowY] = ind2sub(size(plotData), lowPoints);
+
+plot(lowY, lowX, '.r')
+plot(freqRef, powerRef, 'm-o')
+
+% plotData = reshape(yint(:,2), size(testFreq));
+subplot(1,3,3)
+imshow(plotData/100); hold on
+pause(0.1)
+
+lowPoints = find(plotData < 5);
+[lowX, lowY] = ind2sub(size(plotData), lowPoints);
+
+plot(lowY, lowX, '.r')
+plot(freqRef, powerRef, 'm-o')
+
 figure; 
 
-opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 freqCurve.c1/2], 'Upper', [freqCurve.a1*1.5 freqCurve.b1 freqCurve.c1*1.5]);
+opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 freqCurve.c1/2], 'Upper', [freqCurve.a1 freqCurve.b1 freqCurve.c1]);
 
 for i = fliplr(1:length(simPowerTest_powers))
     
@@ -250,7 +395,7 @@ for i = fliplr(1:length(simPowerTest_powers))
         opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 powerCurve.c1/2], 'Upper', [powerCurve.a1 freqCurve.b1 powerCurve.c1]);
     end
         
-    powerCurve = fit(tempFreqs(:), tempInacts(:), 'gauss1', opts);
+    powerCurve = fit(tempFreqs(:), tempInacts(:), 'gauss1', opts)
 
     if i == length(simPowerTest_powers)
        topCurve =  powerCurve;
@@ -264,7 +409,7 @@ for i = fliplr(1:length(simPowerTest_powers))
         power_curveConfidence = predint(powerCurve, freqRangeFine, 0.95, 'Functional');
         power_curveObserved = predint(powerCurve, freqRangeFine, 0.95, 'obs');
         
-        plot(freqRangeFine, power_curveConfidence, '--', 'color', powerCols(i,:))
+%         plot(freqRangeFine, power_curveConfidence, '--', 'color', powerCols(i,:))
      else
          power_curveConfidence = [];
          power_curveObserved = [];    
@@ -303,6 +448,20 @@ for i = fliplr(1:length(simPowerTest_powers))
         plot(tempFreqs(1), simPowerTest_powers(i), 'o', 'markersize', 8, 'linewidth', 1, 'color', powerCols(i,:));
         plot(tempFreqs(2), simPowerTest_powers(i), 'o', 'markersize', 8, 'linewidth', 1, 'color', powerCols(i,:));
     end
+    
+    % Test convultion
+    subplot(3,7,3); hold on
+    inactFn = conv(power_curveInact, influenzaDist_fine,'same')/sum(influenzaDist_fine);
+%     plot(power_curveInact - inactFn, 'color', powerCols(i,:))
+    plot(inactFn, 'color', powerCols(i,:))
+%     inactFn = deconv(power_curveInact, influenzaDist_fine);
+%     plot(inactFn, 'color', powerCols(i,:))
+    
+    subplot(3,7,4); hold on
+    plot(simPowerTest_freqRef(:,i,1), simPowerTest_inactRef(:,i,1), 'color', powerCols(i,:));
+    
+    subplot(3,7,5); hold on
+    plot(freqRangeFine, power_curveInact, 'color', powerCols(i,:));
 end
 
 subplot(3,7,1); hold on
@@ -311,6 +470,10 @@ plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2) - (100-freqCurve.a1), '-', '
 plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 xlim([0 20]); ylim([0 100])
 
+subplot(3,7,2); hold on
+plot(simPowerTest_freqs, powerThresholdInterp_powerTest, 'k')
+
+plot(influenzSize_resonances/10^9, influenzaSize_dist+200, '-b', 'linewidth', 2)
 
 for i = 1:length(simPowerTest_freqs)
     
@@ -335,38 +498,39 @@ for i = 1:length(simPowerTest_freqs)
     end
     
     % Do fit
-%     offSetValue = topCurve(simPowerTest_freqs(i));
-%     
-%     weibullFit=fittype('(x>c)*d*(1-exp(-a*((x-c))^b))',...
-%              'coefficients',{'a','b','c','d'},'independent','x');
-%     
-%     opts = fitoptions(weibullFit);
-%     opts.Lower = [0.5 0.5 0 0];
-%     opts.Upper = [5 4 log10(100) 100];
-%     opts.StartPoint = [1 1 log10(50) offSetValue];
-%     
-%     weibullCurve = fit(log10(tempPowers(:)), tempInacts(:), weibullFit, opts);
+    offSetValue = topCurve(simPowerTest_freqs(i));
     
-    linearFit = fittype('(a*(x)+b)',... %  * ((a*(x-c)+b)<100) + ((a*(x-c)+b)>100)*100
-             'coefficients',{'a','b'},'independent','x');
+    weibullFit=fittype('(x>c)*(1-exp(-a*((x-c))^b))',...
+             'coefficients',{'a','b','c'},'independent','x');
     
-    opts = fitoptions(linearFit);
-%     opts.Lower = [0 -20 0];
-%     opts.Upper = [10 20 log10(100)];
-    opts.StartPoint = [1 0];
+    opts = fitoptions(weibullFit);
+    opts.Lower = [0.5 0.5 0];
+    opts.Upper = [5 4 log10(100)];
+    opts.StartPoint = [1 1 log10(50)];
     
-    linearCurve = fit(log10(tempPowers(:)), tempInacts(:), linearFit, opts);
-         
-    power_curveInact = linearCurve(log10(powerRangeFine));
-    power_coefBound = confint(linearCurve);
+    fittedCurve = fit(log10(tempPowers(:)), tempInacts(:)/offSetValue, weibullFit, opts);
+    
+    % offSetValue = 1;
+%     linearFit = fittype('(a*(x)+b)',... %  * ((a*(x-c)+b)<100) + ((a*(x-c)+b)>100)*100
+%              'coefficients',{'a','b'},'independent','x');
+%     
+%     opts = fitoptions(linearFit);
+% %     opts.Lower = [0 -20 0];
+% %     opts.Upper = [10 20 log10(100)];
+%     opts.StartPoint = [1 0];
+%     
+%     fittedCurve = fit(log10(tempPowers(:)), tempInacts(:), linearFit, opts);
+
+    power_curveInact = fittedCurve(log10(powerRangeFine))*offSetValue;
+    power_coefBound = confint(fittedCurve);
     
     % Plot log
     subplot(3,7,7+i); hold on
     plot(log10(powerRangeFine), power_curveInact, 'color', 'r')
     
     if ~all( all( isnan( power_coefBound)))
-        power_curveConfidence = predint(linearCurve, log10(powerRangeFine), 0.95, 'Functional');
-        power_curveObserved = predint(linearCurve, log10(powerRangeFine), 0.95, 'obs');
+        power_curveConfidence = predint(fittedCurve, log10(powerRangeFine), 0.95, 'Functional')*offSetValue;
+        power_curveObserved = predint(fittedCurve, log10(powerRangeFine), 0.95, 'obs')*offSetValue;
         
         plot(log10(powerRangeFine), power_curveConfidence, '--', 'color', 'r')
     else
@@ -376,21 +540,22 @@ for i = 1:length(simPowerTest_freqs)
     
     xlim([1 3]); ylim([0 100])
     
-%     if power_coefBound(2,3) < 3
-%         title(sprintf('%.1f %.1f:%.1f:%.1f', powerThresholdInterp_powerTest(i), 10^power_coefBound(1,3), ...
-%             10^weibullCurve.c, 10^power_coefBound(2,3)));
-%     else
-%         title(sprintf('%.1f', powerThresholdInterp_powerTest(i)));
-%     end
+    if power_coefBound(2,3) < 3
+        title(sprintf('%.1f %.1f:%.1f:%.1f', powerThresholdInterp_powerTest(i), 10^power_coefBound(1,3), ...
+            10^fittedCurve.c, 10^power_coefBound(2,3)));
+    else
+        title(sprintf('%.1f', powerThresholdInterp_powerTest(i)));
+    end
     % Plot ref curve
-    powersToUse = powerRangeFine(powerRangeFine > (powerThresholdInterp_powerTest(i)));
+    powersToUse = powerRangeFine(powerRangeFine > powerThresholdInterp_powerTest(i));
     
     curveVal = curveMax*exp(-(simPowerTest_freqs(i)-curveCenter).^2/(2*curveSpread^2));
 %     powerVal = (1-exp(-powerWeibullAlpha .* ...
 %                     ((log10(powersToUse)-log10(powerThresholdInterp_powerTest(i)))).^powerWeibullBeta));
-    powerVal = powerLinearA*log10(powersToUse)+powerLinearB;           
+    powerVal = powerLinearA*(log10(powersToUse-powerThresholdInterp_powerTest(i)))+powerLinearB;           
     totalVal = curveVal*powerVal;            
     totalVal(totalVal > 100) = 100; 
+    totalVal(totalVal < 0) = 0;
     
     plot(log10(powersToUse), totalVal, 'k')
     
@@ -437,6 +602,6 @@ for i = 1:length(simPowerTest_freqs)
         plot(simPowerTest_freqs(i), tempPower, 'o', 'markersize', 8, 'linewidth', 1);
         
         subplot(3,7,7+i)
-        title(sprintf('%.1f %.1f', powerThresholdInterp_powerTest(i), tempPower));
+%         title(sprintf('%.1f %.1f', powerThresholdInterp_powerTest(i), tempPower));
     end
 end
