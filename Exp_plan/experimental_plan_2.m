@@ -1,5 +1,6 @@
 compare_influenza_data
 
+%% - look at influenza distributions
 influenzaSize_mean = 100*10^-9;
 influenzaSize_std = 20*10^-9/3; % Assume limits are at 3 standard deviations
 
@@ -10,16 +11,35 @@ influenzaVt = 743; %given x2 ratio
 
 influenzaSize_samples = randn(500,1)*influenzaSize_std + influenzaSize_mean;
 
+skewness(influenzaSize_samples)
+kurtosis(influenzaSize_samples)
+
 [influenzaSize_dist, influenzaSize_x] = hist(influenzaSize_samples,20);
 
 influenzSize_resonances = zeros(length(influenzaSize_x),1);
 
+tempResonance = [];
+
 for i = 1:length(influenzaSize_x)
     influenzSize_resonances(i) = calcualtesphereresonance(influenzaSize_x(i)/2, ...
                 'sph', 1, 0, influenzaVl, influenzaVt, 10^9, 10^6, 0)/10^9;
+            
+    tempResonance = [tempResonance, influenzSize_resonances(i)*ones(1,length(influenzaSize_dist(i)))];        
 end
 
-%%% second plan - fitting curves for power and point for time
+% Skewness increases and kurtosis decreases with freq transform..
+skewness(tempResonance)
+kurtosis(tempResonance)
+
+figure;
+subplot(1,2,1);
+plot(influenzaSize_x*10^9, influenzaSize_dist)
+
+subplot(1,2,2);
+plot(influenzSize_resonances/10^9, influenzaSize_dist)
+
+
+%% second plan - fitting curves for power and point for time
 
 nReps = 3;
 absStd= 5; % std on absolute, not relative values (lower SNR on low inactiviation)
