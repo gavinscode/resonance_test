@@ -1,5 +1,5 @@
 compare_influenza_data
-
+close all
 %% - generate parameters for size - would be from SEM
 
 influenzaSize_mean = 100*10^-9;
@@ -39,7 +39,7 @@ simPowerTest_inactLimit = 1; % from height of prediction bound, will be on min a
     % Negative is below peak
     
 %%% Adding setting so 0.75 taken from 1st curve and kept constant for 2nd step    
-simPowerTest_freqPoints = {[1, 0.5, 0.9, -0.5, -0.9], [1 0.75 0.95 -0.75 -0.95]};
+simPowerTest_freqPoints = {[1, 0.75, 0.95, -0.75, -0.95], []};
 % not sure of best spacing to use here...
 powerLogRange = 1:0.25:2.25;
 simPowerTest_powers = round(10.^(powerLogRange))
@@ -48,7 +48,11 @@ simPowerTest_time = simFreqTest_time;
 powerCols = cool(length(simPowerTest_powers));
 
 % Just use single power threshold
-powerThreshold = 45
+% powerThreshold = 45;
+% Use a interpolated threshold
+powerThreshold = [15 -15]+45
+powerThresholdFreqs = [-2.5 2.5] + 8.5;
+
 
 useSharpStep = 1;
 % need to adjust curve if not...
@@ -161,6 +165,8 @@ for i = 1:length(inactCurveRatios)
        [~, freqInd] = max(freq_curveInact);
        
        inactCurveFreqs(i) = freqRangeFine(freqInd);
+       
+       centreFreq = freqRangeFine(freqInd);
    end
 end
 
@@ -187,6 +193,8 @@ end
 % end
 
 simPowerTest_freqs = sort(inactCurveFreqs);
+
+centrePowerInd = find(simPowerTest_freqs == centreFreq);
 
 figure;
 subplot(1,3,1); hold on
@@ -238,6 +246,7 @@ plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
 plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
 %% Phase 1.2 - power
+
 simPowerTest_inact = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_inactRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_freqRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
@@ -286,7 +295,9 @@ simPowerTest_inact(simPowerTest_inact > 100) = 100;
 % Fit curves for each power level
 figure; 
 
-opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 freqCurve.c1/2], 'Upper', [freqCurve.a1*1.2 freqCurve.b1 freqCurve.c1]);
+opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 0.5], 'Upper', [freqCurve.a1 freqCurve.b1 freqCurve.c1]);
+ampLim = freqCurve.a1;
+sigmaLim = freqCurve.c1;
 
 amplitudeConfidence_1 = zeros(length(simPowerTest_powers),1);
 powerCurveArray= cell(length(simPowerTest_powers),1);
@@ -303,7 +314,7 @@ for i = fliplr(1:length(simPowerTest_powers))
     if i ~= length(simPowerTest_powers)
         % Take limits from precedding
         
-        opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 powerCurve.c1/2], 'Upper', [powerCurve.a1*1.2 freqCurve.b1 powerCurve.c1]);
+        opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 0.5], 'Upper', [ampLim freqCurve.b1 sigmaLim]);
     end
         
     powerCurve = fit(tempFreqs(:), tempInacts(:), 'gauss1', opts);
@@ -319,9 +330,15 @@ for i = fliplr(1:length(simPowerTest_powers))
     subplot(1,4,2); hold on
     plot(log10(simPowerTest_powers(i)), powerCurve.a1, 'o', 'color', powerCols(i,:));
     line([1 1]*log10(simPowerTest_powers(i)), [power_coefBound(1,1), power_coefBound(2,1)], 'color', powerCols(i,:))
-    
+
     if ~isnan(power_coefBound(1,1))
         amplitudeConfidence_1(i) = power_coefBound(1,1);
+        
+        if power_coefBound(1,1) > 0
+            ampLim = powerCurve.a1;
+            
+            sigmaLim = powerCurve.c1;
+        end
     else
         amplitudeConfidence_1(i) = 0;
     end
@@ -348,15 +365,18 @@ plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 xlim([0 20]); ylim([-10 110])
 
 subplot(1,4,2); hold on
-line([1 1]*log10(powerThreshold), [0 100], 'color', 'k')
+for i = 1:length(powerThreshold)
+    line([1 1]*log10(powerThreshold(i)), [0 50], 'color', 'k', 'linestyle', ':')
+end
+line([1 1]*log10(mean(powerThreshold)), [0 100], 'color', 'k', 'linestyle', ':')
 
 line([1 1]*log10(zeroInactPoint), [0 100], 'color', 'm')
 
-plot(log10(simFreqTest_power(i)), freqCurve.a1, 'o', 'color', 'r');
-line([1 1]*log10(simFreqTest_power(i)), [freq_coefBound(1,1), freq_coefBound(2,1)], 'color', 'r')
+plot(log10(simFreqTest_power), freqCurve.a1, 'o', 'color', 'r');
+line([1 1]*log10(simFreqTest_power), [freq_coefBound(1,1), freq_coefBound(2,1)], 'color', 'r')
 
 plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 3]); ylim([0 100])
+xlim([0 3]); ylim([0 100])
 
 % get points to test
 % for power, first with above zero confidence bound
@@ -369,30 +389,35 @@ simPowerTest_powers_2 = round(10.^(powerLogRange(powerInd-1):0.05:powerLogRange(
 powerCols_2 = winter(length(simPowerTest_powers_2));
 
 % for freq - move into 50% point from final curve
-% Get curve again
-tempCurve = powerCurveArray{powerInd};
-power_curveInact = tempCurve(freqRangeFine);
+if ~isempty(simPowerTest_freqPoints{2})
+    % Get curve again
+    tempCurve = powerCurveArray{powerInd};
+    power_curveInact = tempCurve(freqRangeFine);
+    
+    inactCurveRatios = simPowerTest_freqPoints{2};
+    inactCurveFreqs = zeros(length(inactCurveRatios), 1);
 
-inactCurveRatios = simPowerTest_freqPoints{2};
-inactCurveFreqs = zeros(length(inactCurveRatios), 1);
+    for i = 1:length(inactCurveRatios)
+       if inactCurveRatios(i) ~= 1
+           freqInd = find(power_curveInact/max(power_curveInact) > abs(inactCurveRatios(i)));
 
-for i = 1:length(inactCurveRatios)
-   if inactCurveRatios(i) ~= 1
-       freqInd = find(power_curveInact/max(power_curveInact) > abs(inactCurveRatios(i)));
-       
-       if inactCurveRatios(i) > 0
-           inactCurveFreqs(i) = freqRangeFine(freqInd(end));
+           if inactCurveRatios(i) > 0
+               inactCurveFreqs(i) = freqRangeFine(freqInd(end));
+           else
+               inactCurveFreqs(i) = freqRangeFine(freqInd(1));
+           end
        else
-           inactCurveFreqs(i) = freqRangeFine(freqInd(1));
-       end
-   else
-       [~, freqInd] = max(freq_curveInact);
-       
-       inactCurveFreqs(i) = freqRangeFine(freqInd);
-   end
-end
+           [~, freqInd] = max(freq_curveInact);
 
-simPowerTest_freqs_2 = sort(inactCurveFreqs);
+           inactCurveFreqs(i) = freqRangeFine(freqInd);
+       end
+    end
+
+    simPowerTest_freqs_2 = sort(inactCurveFreqs);
+else
+    % if empty, use the same
+    simPowerTest_freqs_2 = simPowerTest_freqs;
+end
 
 % subplot(1,4,1);
 % for i = 1:length(simPowerTest_freqs)
@@ -406,8 +431,8 @@ simPowerTest_freqs_2 = sort(inactCurveFreqs);
 % plot(influenzSize_resonances, influenzaSize_dist, '-b', 'linewidth', 2)
 
 %% Do second step of power test
-
-% nReps = 10;
+%%% Set based on STD noise from 1st curve
+nReps = 5;
 
 simPowerTest_inact_2 = zeros(length(simPowerTest_freqs_2), length(simPowerTest_powers_2), nReps);
 simPowerTest_inactRef_2 = zeros(length(simPowerTest_freqs_2), length(simPowerTest_powers_2), nReps);
@@ -455,9 +480,11 @@ end
 simPowerTest_inact_2(simPowerTest_inact_2 > 100) = 100;
 
 % Fit curves for each power level
-
-tempCurve = powerCurveArray{powerInd};
-opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 tempCurve.c1/2], 'Upper', [tempCurve.a1*1.2 freqCurve.b1 tempCurve.c1]);
+% Use limit from one step up on previous
+tempCurve = powerCurveArray{powerInd+1};
+opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 0.5], 'Upper', [tempCurve.a1 freqCurve.b1 tempCurve.c1]);
+ampLim = tempCurve.a1;
+sigmaLim = tempCurve.c1;
 
 amplitudeConfidence_2 = zeros(length(simPowerTest_powers_2),1);
 powerCurveArray_2 = cell(length(simPowerTest_powers_2),1);
@@ -474,7 +501,7 @@ for i = fliplr(1:length(simPowerTest_powers_2))
     if i ~= length(simPowerTest_powers_2)
         % Take limits from precedding
         
-        opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 powerCurve.c1/2], 'Upper', [powerCurve.a1*1.2 freqCurve.b1 powerCurve.c1]);
+        opts = fitoptions('gauss1', 'Lower', [0 freqCurve.b1 0.5], 'Upper', [ampLim freqCurve.b1 sigmaLim]);
     end
         
     powerCurve = fit(tempFreqs(:), tempInacts(:), 'gauss1', opts);
@@ -493,6 +520,12 @@ for i = fliplr(1:length(simPowerTest_powers_2))
     
     if ~isnan(power_coefBound(1,1))
         amplitudeConfidence_2(i) = power_coefBound(1,1);
+        
+        if power_coefBound(1,1) > 0
+            ampLim = powerCurve.a1;
+
+            sigmaLim = powerCurve.c1;
+        end
     else
         amplitudeConfidence_2(i) = 0;
     end
@@ -505,19 +538,108 @@ tempCurve = powerCurveArray{powerInd};
 power_curveInact = tempCurve(freqRangeFine);
 plot(freqRangeFine, power_curveInact, 'color', powerCols(powerInd,:))
 
+plot(influenzSize_resonances, influenzaSize_dist/max(influenzaSize_dist)*tempCurve.a1, '-k', 'linewidth', 2)
+
 % plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2) - (100-freqCurve.a1), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
 % plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 xlim([5 8.5+3.5]); ylim([-10 30])
 
 subplot(1,4,4); hold on
-line([1 1]*log10(powerThreshold), [0 100], 'color', 'k')
+for i = 1:length(powerThreshold)
+    line([1 1]*log10(powerThreshold(i)), [0 20], 'color', 'k', 'linestyle', ':')
+end
+line([1 1]*log10(mean(powerThreshold)), [0 40], 'color', 'k', 'linestyle', ':')
 
 line([1 1]*log10(zeroInactPoint), [0 100], 'color', 'm')
 
-plot(log10(simFreqTest_power(i)), freqCurve.a1, 'o', 'color', 'r');
-line([1 1]*log10(simFreqTest_power(i)), [freq_coefBound(1,1), freq_coefBound(2,1)], 'color', 'r')
+plot(log10(simFreqTest_power), freqCurve.a1, 'o', 'color', 'r');
+line([1 1]*log10(simFreqTest_power), [freq_coefBound(1,1), freq_coefBound(2,1)], 'color', 'r')
 
 plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 2]); ylim([0 20])
+xlim([1 2]); ylim([0 40])
 
 %% Add symmetry comparison
+figure;
+
+for i = 1:length(simPowerTest_freqs)
+    subplot(2,5,i); hold on
+    
+    tempPowers = simPowerTest_powerRef(i,:,:);
+    tempInacts = simPowerTest_inact(i,:,:);
+    
+    for j = 1:length(simPowerTest_powers)
+        plot(log10(permute(tempPowers(1,j,:), [3 2 1])), permute(tempInacts(1,j,:), [3 2 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', powerCols(j,:))
+    end
+    
+    if i == centrePowerInd
+        plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
+    end
+    
+    plot(log10(permute(tempPowers(1,:,1), [3 2 1])), mean(permute(tempInacts(1,:,:), [3 2 1])), '-', 'linewidth', 2, 'markersize', 4, 'color', 'c')
+    
+    line([1 1]*log10(powerThresholdInterp_powerTest(i)), [0 100], 'color', 'k')
+    
+end
+
+for i = 1:length(simPowerTest_freqs_2)
+    subplot(2,5,i);
+    
+    tempPowers = simPowerTest_powerRef_2(i,:,:);
+    tempInacts = simPowerTest_inact_2(i,:,:);
+    
+    for j = 1:length(simPowerTest_powers_2)
+        plot(log10(permute(tempPowers(1,j,:), [3 2 1])), permute(tempInacts(1,j,:), [3 2 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', powerCols_2(j,:))
+    end
+    
+    plot(log10(permute(tempPowers(1,:,1), [3 2 1])), mean(permute(tempInacts(1,:,:), [3 2 1])), '-', 'linewidth', 2, 'markersize', 4, 'color', 'g')
+end
+
+%%% Could combine duplicated powers in mean
+
+for i = 1:centrePowerInd-1
+    subplot(2,5,i+5); hold on
+    
+    % for 1st step
+    topPowers = simPowerTest_powerRef(length(simPowerTest_freqs)-i+1,:,:);
+    topInacts = simPowerTest_inact(length(simPowerTest_freqs)-i+1,:,:);
+    
+    bottomPowers = simPowerTest_powerRef(i,:,:);
+    bottomInacts = simPowerTest_inact(i,:,:);
+    
+    meanInact = zeros(1,length(simPowerTest_powers));
+    
+    for j = 1:length(simPowerTest_powers)
+        meanInact(j) = mean([permute(topInacts(1,j,:), [2 3 1]) permute(bottomInacts(1,j,:), [2 3 1])]);
+        
+        plot(log10(permute(topPowers(1,j,:), [3 2 1])), permute(topInacts(1,j,:), [3 2 1])-meanInact(j), 'o', 'linewidth', 2, 'markersize', 4, 'color', 'r');
+        
+        plot(log10(permute(bottomPowers(1,j,:), [3 2 1])), permute(bottomInacts(1,j,:), [3 2 1])-meanInact(j), 'o', 'linewidth', 2, 'markersize', 4, 'color', 'b');
+    end
+    
+    plot(log10(permute(topPowers(1,:,1), [3 2 1])), mean(permute(topInacts(1,:,:), [3 2 1]))-meanInact, '-', 'linewidth', 2, 'markersize', 4, 'color', 'r')
+    
+    plot(log10(permute(bottomPowers(1,:,1), [3 2 1])), mean(permute(bottomInacts(1,:,:), [3 2 1]))-meanInact, '-', 'linewidth', 2, 'markersize', 4, 'color', 'b')
+    
+    % for 2nd step
+    topPowers = simPowerTest_powerRef_2(length(simPowerTest_freqs)-i+1,:,:);
+    topInacts = simPowerTest_inact_2(length(simPowerTest_freqs)-i+1,:,:);
+    
+    bottomPowers = simPowerTest_powerRef_2(i,:,:);
+    bottomInacts = simPowerTest_inact_2(i,:,:);
+    
+    meanInact = zeros(1,length(simPowerTest_powers));
+    
+    for j = 1:length(simPowerTest_powers)
+        meanInact(j) = mean([permute(topInacts(1,j,:), [2 3 1]) permute(bottomInacts(1,j,:), [2 3 1])]);
+        
+        plot(log10(permute(topPowers(1,j,:), [3 2 1])), permute(topInacts(1,j,:), [3 2 1])-meanInact(j), 'o', 'linewidth', 2, 'markersize', 4, 'color', 'r');
+        
+        plot(log10(permute(bottomPowers(1,j,:), [3 2 1])), permute(bottomInacts(1,j,:), [3 2 1])-meanInact(j), 'o', 'linewidth', 2, 'markersize', 4, 'color', 'b');
+    end
+    
+    plot(log10(permute(topPowers(1,:,1), [3 2 1])), mean(permute(topInacts(1,:,:), [3 2 1]))-meanInact, '-.', 'linewidth', 2, 'markersize', 4, 'color', 'r')
+    
+    plot(log10(permute(bottomPowers(1,:,1), [3 2 1])), mean(permute(bottomInacts(1,:,:), [3 2 1]))-meanInact, '-.', 'linewidth', 2, 'markersize', 4, 'color', 'b')
+    
+    line([1 1]*log10(powerThresholdInterp_powerTest(i)), [-10 10], 'color', 'k')
+end

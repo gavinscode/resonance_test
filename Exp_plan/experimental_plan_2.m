@@ -249,34 +249,41 @@ plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
 %%% Test deconvolution - difference ends up basically <1% - too small...
 subplot(1,3,3); hold on
-plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2)/max(dataInactFreq2016(:,2))*freqCurve.a1, '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
 % xlim([1 20]); ylim([-10 110])
 
 freqCurve_scaled = freqCurve;
-freqCurve_scaled.a1 = 1;
 
 freq_curveInact_scaled = freqCurve_scaled(freqRangeFine);
 
 % Interpolate influenza to same spacing
-influenzaSize_res_fine = influenzSize_resonances;
-influenzaSize_res_fine(influenzaSize_res_fine < min(influenzSize_resonances) |...
-    influenzaSize_res_fine > max(influenzSize_resonances)) = [];
+influenzaSize_res_fine = freqRangeFine; 
+influenzaSize_res_fine(influenzaSize_res_fine < (min(influenzSize_resonances)) |...
+    influenzaSize_res_fine > (max(influenzSize_resonances))) = [];
 influenzaDist_fine = interp1(influenzSize_resonances, influenzaSize_dist, influenzaSize_res_fine, 'linear'); 
-influenzaDist_fine = influenzaDist_fine/sum(influenzaDist_fine);
 
-plot(freqRangeFine, freq_curveInact_scaled, 'r-', 'linewidth', 2);
+% Interpolate absorbtion to same spacing
+absorbtion_res_fine = freqRangeFine;
+absorbtion_res_fine(absorbtion_res_fine < min(dataAbs2016(:,1)) |...
+    absorbtion_res_fine > max(dataAbs2016(:,1))) = [];
+absorbtion_fine = interp1(dataAbs2016(:,1), dataAbs2016(:,2), absorbtion_res_fine, 'linear'); 
 
-inactFn = conv(freq_curveInact_scaled, influenzaDist_fine,'same')/sum(influenzaDist_fine);
-% inactFn = conv(influenzaDist_fine, freq_curveInact_scaled, 'full')/sum(freq_curveInact_scaled);
-% plot(inactFn, 'm-')
+plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 
-plot(influenzaSize_res_fine, influenzaDist_fine/max(influenzaDist_fine)*100, 'b-')
+% inactFn = conv(freq_curveInact, influenzaDist_fine,'same')/sum(influenzaDist_fine);
+% inactFn = deconv(freq_curveInact_scaled, influenzaDist_fine);
+% plot(freqRangeFine, inactFn, 'm-')
 
-plot(freqRangeFine(1:length(inactFn)), inactFn, 'm-')
+inactFn = conv(absorbtion_fine, influenzaDist_fine,'full')/sum(influenzaDist_fine);
+plot(freqRangeFine(90:(90+length(inactFn)-1)), inactFn/max(inactFn)*freqCurve.a1, 'm-')
+
+plot(influenzaSize_res_fine, influenzaDist_fine, 'b-')
+
+plot(absorbtion_res_fine, absorbtion_fine/max(absorbtion_fine)*freqCurve.a1, 'k-')
 
 % difference shows conv has little effect.
-figure;
-plot(freq_curveInact_scaled - inactFn)
+% figure;
+% plot(freq_curveInact - inactFn)
 
 %% Phase 1.2 - power
 simPowerTest_inact = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
