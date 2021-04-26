@@ -10,6 +10,8 @@ dataInactFreq2016 = readmatrix('Influenza_inact_freq_2016.csv');
 
 dataInactPower2016 = readmatrix('Influenza_inact_int_2016.csv');
 
+dataInactPower2014 = readmatrix('Influenza_inact_int_2014.csv');
+
 dataInactPower2016(end,2) = 100;
 
 % Plot freq
@@ -124,6 +126,7 @@ legend('Inactivation','Absorption', 'FontSize', 20)
 
 subplot(1,4,2); hold on
 plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+plot(dataInactPower2014(:,1), dataInactPower2014(:,2), 'm:o', 'linewidth',2, 'markersize', 8)
 line([1 1]*(200*(8/3)^0.2)/2, [0 100], 'color', 'b', 'linewidth', 1.5)
 line([1 1]*(18.56*(8)^0.699)/2, [0 100], 'color', 'g', 'linewidth', 1.5)
 line([1 1]*(50)/2, [0 100], 'color', 'b', 'linestyle', '--', 'linewidth', 1.5)
@@ -136,7 +139,7 @@ set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
 title('Inactivation by power', 'FontSize', 20)
 xlabel('Power density (W/m^2)', 'FontSize', 20)
 ylabel('Inactivation (%)', 'FontSize', 20)
-legend('Inactivation', 'Limit - local, occupational', 'Limit - local, public', ...
+legend('Inactivation - 2016', 'Inactivation - 2014', 'Limit - local, occupational', 'Limit - local, public', ...
     'Limit - body, occupational', 'Limit - body, public', 'FontSize',15)
 
 % Put color bar on seperate supbplot so it doesn't contract image
