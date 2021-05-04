@@ -2,6 +2,8 @@ clear; close all; clc
 
 cd('/Users/gavintaylor/Documents/Matlab/Git_versioned_April_27/Resonance_test_git/Data')
 
+dataAbs2008 = readmatrix('Influenza_abs_2008.csv');
+
 dataAbs2009 = readmatrix('Influenza_abs_2009.csv');
 
 dataAbs2016 = readmatrix('Influenza_abs_2016.csv');
@@ -12,11 +14,17 @@ dataInactPower2016 = readmatrix('Influenza_inact_int_2016.csv');
 
 dataInactPower2014 = readmatrix('Influenza_inact_int_2014.csv');
 
+dataDiameter2017 = readmatrix('Diameter_dist_2017.csv');
+
+dataMass1984 = readmatrix('Mass_dist_1984.csv');
+
+
 dataInactPower2016(end,2) = 100;
 
 % Plot freq
 f1 = figure; hold on;
 
+plot(dataAbs2008(:,1), dataAbs2008(:,2), 'k-.', 'linewidth',2)
 plot(dataAbs2009(:,1), dataAbs2009(:,2), 'k:', 'linewidth',2)
 plot(dataAbs2016(:,1), dataAbs2016(:,2), 'k', 'linewidth',2)
 
@@ -26,7 +34,7 @@ set(gcf, 'color', 'w');
 title('Influenza absorbtion', 'FontSize', 20)
 xlabel('Frequency (GHz)', 'FontSize',20)
 ylabel('Absorption (%)', 'FontSize',20)
-legend('2009', '2016', 'FontSize',15)
+legend('2008 - H1N1','2009 - ?', '2016 - H3N2', 'FontSize',15)
 
 % Plot inactivation as im
 freqRange = 5:0.2:15;
@@ -139,7 +147,7 @@ set(gca,'TickDir','out', 'LineWidth',1, 'FontSize',15);
 title('Inactivation by power', 'FontSize', 20)
 xlabel('Power density (W/m^2)', 'FontSize', 20)
 ylabel('Inactivation (%)', 'FontSize', 20)
-legend('Inactivation - 2016', 'Inactivation - 2014', 'Limit - local, occupational', 'Limit - local, public', ...
+legend('Inactivation:2016 - H3N2', 'Inactivation:2014 - H3N2', 'Limit - local, occupational', 'Limit - local, public', ...
     'Limit - body, occupational', 'Limit - body, public', 'FontSize',15)
 
 % Put color bar on seperate supbplot so it doesn't contract image
@@ -158,3 +166,69 @@ temp = gca; temp.YLabel.Visible = 'on';
 % temp = [0.77 0.4, 0.008, 0.25]; set(hBar, 'Position', temp)
 
 set(gcf, 'color', 'w');
+
+%% Test symmetry
+if 1
+    
+    figure;
+    subplot(2,2,1); hold on
+    % Flip bottom of each
+    [~, maxInd] = max(dataAbs2008(:,2));
+    plot(dataAbs2008(maxInd:end,1)-dataAbs2008(maxInd,1), dataAbs2008(maxInd:end,2), 'k', 'linewidth',2)
+    plot(-(dataAbs2008(1:maxInd,1)-dataAbs2008(maxInd,1)), dataAbs2008(1:maxInd,2), 'r', 'linewidth',2)
+    
+    xlim([0 10]); title('2008')
+    
+    subplot(2,2,2); hold on
+    [~, maxInd] = max(dataAbs2009(:,2));
+    plot(dataAbs2009(maxInd:end,1)-dataAbs2009(maxInd,1), dataAbs2009(maxInd:end,2), 'k', 'linewidth',2)
+    plot(-(dataAbs2009(1:maxInd,1)-dataAbs2009(maxInd,1)), dataAbs2009(1:maxInd,2), 'r', 'linewidth',2)
+    
+    xlim([0 10]); title('2009')
+    
+    subplot(2,2,3); hold on
+    [~, maxInd] = max(dataAbs2016(:,2));
+    plot(dataAbs2016(maxInd:end,1)-dataAbs2016(maxInd,1), dataAbs2016(maxInd:end,2), 'k', 'linewidth',2)
+    plot(-(dataAbs2016(1:maxInd,1)-dataAbs2016(maxInd,1)), dataAbs2016(1:maxInd,2), 'r', 'linewidth',2)
+  
+    xlim([0 10]); title('2016')
+    
+    subplot(2,2,4); hold on
+    [~, maxInd] = max(dataInactFreq2016(:,2));
+    plot(dataInactFreq2016(maxInd:end,1)-dataInactFreq2016(maxInd,1), dataInactFreq2016(maxInd:end,2), 'k', 'linewidth',2)
+    plot(-(dataInactFreq2016(1:maxInd,1)-dataInactFreq2016(maxInd,1)), dataInactFreq2016(1:maxInd,2), 'r', 'linewidth',2)
+    
+    xlim([0 10]); title('2016 Inact')
+end
+
+%% Test power log
+if 0
+    figure;
+    subplot(2,2,1); hold on
+    plot(dataInactPower2016(:,1), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+    plot(dataInactPower2016(:,1), -dataInactPower2016(:,2)+100, 'm:o', 'linewidth',2, 'markersize', 8)
+    % Rough UV curve from cornavirus paper
+    plot([0.01 0.5 1 2]*400, [99 10 1 0.01], 'c-o', 'linewidth',2, 'markersize', 8)
+    plot([0.01 0.5 1 2]*400, -[99 10 1 0.01]+100, 'c:o', 'linewidth',2, 'markersize', 8)
+    
+    subplot(2,2,2); hold on
+    plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), 'm-o', 'linewidth',2, 'markersize', 8)
+    plot(log10(dataInactPower2016(:,1)), -dataInactPower2016(:,2)+100, 'm:o', 'linewidth',2, 'markersize', 8)
+    
+    plot(log10([0.01 0.5 1 2]*400), [99 10 1 0.01], 'c-o', 'linewidth',2, 'markersize', 8)
+    plot(log10([0.01 0.5 1 2]*400), -[99 10 1 0.01]+100, 'c:o', 'linewidth',2, 'markersize', 8)
+    
+    subplot(2,2,3); hold on
+    plot(dataInactPower2016(:,1), log10(dataInactPower2016(:,2)), 'm-o', 'linewidth',2, 'markersize', 8)
+    plot(dataInactPower2016(:,1), log10(-[dataInactPower2016(1:3,2)' 99]+100), 'm:o', 'linewidth',2, 'markersize', 8)
+    
+    plot([0.01 0.5 1 2]*400, log10([100 10 1 0.01]), 'c-o', 'linewidth',2, 'markersize', 8)
+    plot([0.01 0.5 1 2]*400, log10(-[99 10 1 0.01]+100), 'c:o', 'linewidth',2, 'markersize', 8)
+    
+    subplot(2,2,4); hold on
+    plot(log10(dataInactPower2016(:,1)), log10(dataInactPower2016(:,2)), 'm-o', 'linewidth',2, 'markersize', 8)
+    plot(log10(dataInactPower2016(:,1)), log10(-[dataInactPower2016(1:3,2)' 99]+100), 'm:o', 'linewidth',2, 'markersize', 8)
+    
+    plot(log10([0.01 0.5 1 2]*400), log10([100 10 1 0.01]), 'c-o', 'linewidth',2, 'markersize', 8)
+    plot(log10([0.01 0.5 1 2]*400), log10(-[99 10 1 0.01]+100), 'c:o', 'linewidth',2, 'markersize', 8)
+end

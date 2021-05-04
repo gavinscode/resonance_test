@@ -19,7 +19,7 @@ for i = 1:length(influenzaSize_x)
                 'sph', 1, 0, influenzaVl, influenzaVt, 10^9, 10^6, 0)/10^9;
 end
  
-%% second plan - sequential power steps.
+%% third plan - sequential power steps.
 
 nReps = 3;
 absStd= 5; % std on absolute, not relative values (lower SNR on low inactiviation)
@@ -52,7 +52,6 @@ powerCols = cool(length(simPowerTest_powers));
 % Use a interpolated threshold
 powerThreshold = [15 -15]+45
 powerThresholdFreqs = [-2.5 2.5] + 8.5;
-
 
 useSharpStep = 1;
 % need to adjust curve if not...
@@ -99,7 +98,7 @@ simFreqTest_inactRef = zeros(length(simFreqTest_freqs), nReps);
 simFreqTest_FreqRef = zeros(length(simFreqTest_freqs), nReps);
 simFreqTest_PowerRef = ones(length(simFreqTest_freqs), nReps)*simFreqTest_power;
 
-% Get matched roots across freq
+% Get matched power across freq
 if length(powerThreshold) == 1
     powerThresholdInterp_freqTest = powerThreshold*ones(length(simFreqTest_freqs),1);
 else
