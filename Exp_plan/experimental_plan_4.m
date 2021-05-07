@@ -5,11 +5,17 @@ close all
 influenzaSize_mean = 100*10^-9;
 influenzaSize_std = 20*10^-9/3; % Assume limits are at 3 standard deviations
 
-initialCountNum = 500;
+initialCountNum = 5000;
 
 influenzaSize_samples = randn(initialCountNum,1)*influenzaSize_std + influenzaSize_mean;
 
-[influenzaSize_dist, influenzaSize] = hist(influenzaSize_samples,(50:5:150)/10^9);
+% How accurately can size be determined from TEM? surely not < 1 nm... 
+
+distStep = 1; % Also percentage as across 100
+stepPercent = distStep;
+%%% May be some optimum way to set step to get best SNR later.
+
+[influenzaSize_dist, influenzaSize] = hist(influenzaSize_samples,(50:distStep:150)/10^9);
 
 [~, maxSizeInd] = max(influenzaSize_dist);
 
@@ -59,15 +65,15 @@ curveCenter = 8.5;
 curveSpread = 2.3;
 
 % For power
-powerThreshold = 45;
+powerThreshold = 0; %45
 
 % Linear expression - note this is on log10 of power
 powerLinearA = 0.709;
 powerLinearB = -1.08;
 zeroInactPoint = 10^(-powerLinearB/powerLinearA)
 
-nReps = 3;
-testCountNum = 200;
+nReps = 5;
+testCountNum = initialCountNum;
 
 % Phase 1.1 - also want to fit function to get peak 
 simFreqTest_freqs = 1:1:20;
@@ -76,7 +82,8 @@ simFreqTest_time = 1000;
 
 % Phase 1.2
 % freqs will be on center
-powerLogRange = 1:0.25:2.25;
+% powerLogRange = 1:0.25:2.25;
+powerLogRange = 1.5:0.05:1.75;
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
 
@@ -269,6 +276,9 @@ plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
 %% Phase 1.2 - power
 
+% For linear intersect to zero
+% simPowerTest_powers(1:5) = 33:0.25:34;
+
 simPowerTest_inact = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_inactRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_freqRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
@@ -326,16 +336,17 @@ inactFractionBySize = zeros(length(simPowerTest_freqs), length(simPowerTest_powe
 
 activeBySize = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps, length(influenzaSize));
 
+%%% Main to do here
+%%%     1. scale active virus particle dist sides to match original dist
+%%%     2. Pick drop in dist/peak innact and track as it gets lower - otherwise centre point needs to be regularly adjusted
+            % May move by dist
 
 %%% Make a function for this, will use later
 for i = 1:length(simPowerTest_powers)
     
     subplot(3,length(simPowerTest_powers),length(simPowerTest_powers)+i); hold on
-    plot(influenzaSize, influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
+    plot(influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
         
-    subplot(3,length(simPowerTest_powers),2*length(simPowerTest_powers)+i); hold on
-    plot(influenzaSize, influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
-    
     for j = 1:nReps
         tempSize_samples = randn(testCountNum,1)*influenzaSize_std + influenzaSize_mean;
 
@@ -387,28 +398,56 @@ for i = 1:length(simPowerTest_powers)
 
         % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
         %%% However, should know proper ratio, which may require fitting sides of active distribution
+        zeroRatioInds = find(influenzaSize_dist/initialCountNum*100 < stepPercent);
+        
+        zeroFractionInds = find((activeDistDist+inactiveDist)/testCountNum*100 < stepPercent);
+        
         inactRatioBySize(1,i,j,:) = (1 - (activeDistDist/testCountNum)./(influenzaSize_dist/initialCountNum))*100;
         
+        inactRatioBySize(1,i,j,zeroRatioInds) = 0;
+        
         inactFractionBySize(1,i,j,:) = (1 - (activeDistDist./(activeDistDist+inactiveDist)))*100;
+        
+        inactFractionBySize(1,i,j,zeroFractionInds) = 0;
         
         activeBySize(1,i,j,:) = activeDistDist/testCountNum*100;
         
         % Counted inactivated
         subplot(3,length(simPowerTest_powers),length(simPowerTest_powers)+i); hold on
 
-        plot(influenzaSize, (activeDistDist+inactiveDist)/testCountNum*100, 'r') %activeDistDist+
+        plot((activeDistDist+inactiveDist)/testCountNum*100, 'r') %activeDistDist+
 
 %         plot(influenzaSize, (inactiveDist)/testCountNum*100, 'r')
         
-        plot(influenzaSize, activeDistDist/testCountNum*100, 'k')
+        plot(activeDistDist/testCountNum*100, 'k')
+        
+        %inactivation spectrum
+        subplot(3,length(simPowerTest_powers),2*length(simPowerTest_powers)+i); hold on
+
+        plot(permute(inactRatioBySize(1,i,j,:), [4 3 2 1]), 'k');
+        ylim([-50 100])
     end
+end
+
+% Getting this spot on is hard - may need to do manually...
+% Need to set this better
+if distStep == 1
+    %%% Somehow this shifts around depending on number of samples...
+    % moves by dist
+    maxFreqInd = 52; % for 1 step...
+    %51 for 1000, 52 for 1000
+elseif distStep == 0.5
+    maxFreqInd = 101; % for 0.5 step...
+    % seems more stable against shifting
+else
+    error('Need to find min diststep')
 end
 
 % Given count
 subplot(3,length(simPowerTest_powers),2); hold on
 
 for j = 1:length(simPowerTest_powers)
-    plot(log10(permute(simPowerTest_powerRef(1,j,:), [3 2 1])), permute(inactFractionBySize(1,j,:, maxSizeInd), [4, 3 2 1]), 'ro', 'linewidth', 2, 'markersize', 4)
+    plot(log10(permute(simPowerTest_powerRef(1,j,:), [3 2 1])), permute(inactFractionBySize(1,j,:, maxFreqInd), [4, 3 2 1]), 'ro', 'linewidth', 2, 'markersize', 4)
 end
 plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
 
@@ -416,29 +455,7 @@ plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2
 subplot(3,length(simPowerTest_powers),3); hold on
 
 for j = 1:length(simPowerTest_powers)
-    plot(log10(permute(simPowerTest_powerRef(1,j,:), [3 2 1])), permute(inactRatioBySize(1,j,:,maxSizeInd), [4 3 2 1]), 'ro', 'linewidth', 2, 'markersize', 4)
+    plot(log10(permute(simPowerTest_powerRef(1,j,:), [3 2 1])), permute(inactRatioBySize(1,j,:,maxFreqInd), [4 3 2 1]), 'ro', 'linewidth', 2, 'markersize', 4)
 end
 plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
 
-% Try getting halfwidth from fitted gaussians - Not super helpful
-subplot(3,length(simPowerTest_powers),4); hold on
-
-activeBySize(isnan(activeBySize)) = 0;
-activeBySize(isinf(activeBySize)) = 0;
-
-opts = fitoptions('gauss2', 'Lower', [0 80 2 0 80 2], 'Upper', [100 120 10 100 120 10]);
-
-for j = 1:length(simPowerTest_powers)
-
-    
-    for k = 1:nReps
-        distCurve = fit(influenzaSize'*10^9, permute(activeBySize(1,j,k,:), [4 3 2 1]), 'gauss2', opts);
-
-        subplot(3,length(simPowerTest_powers),length(simPowerTest_powers)+j); hold on
-        plot(influenzaSize, distCurve(influenzaSize'*10^9), 'g');
-        
-        subplot(3,length(simPowerTest_powers),4); hold on
-        plot(log10(permute(simPowerTest_powerRef(1,j,k), [3 2 1])), abs(distCurve.b1-distCurve.b2), 'ro', 'linewidth', 2, 'markersize', 4)
-    end
-end
-% plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
