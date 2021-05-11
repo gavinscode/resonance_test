@@ -11,7 +11,7 @@ influenzaSize_samples = randn(initialCountNum,1)*influenzaSize_std + influenzaSi
 
 % How accurately can size be determined from TEM? surely not < 1 nm... 
 
-distStep = 1; % Also percentage as across 100
+distStep = 2; % Also percentage as across 100
 stepPercent = distStep;
 %%% May be some optimum way to set step to get best SNR later.
 
@@ -65,14 +65,22 @@ curveCenter = 8.5;
 curveSpread = 2.3;
 
 % For power
-powerThreshold = 0; %45
+powerThreshold = 45; %45
 
 % Linear expression - note this is on log10 of power
 powerLinearA = 0.709;
 powerLinearB = -1.08;
 zeroInactPoint = 10^(-powerLinearB/powerLinearA)
 
-nReps = 5;
+% Weibull expression
+weibullThreshold = log10(zeroInactPoint);
+weibullAlpha = 1.5; % Scale
+weibullBeta = 1.75; % Shape
+
+% Which to use
+useWeibullPower = 0;
+
+nReps = 3;
 testCountNum = initialCountNum;
 
 % Phase 1.1 - also want to fit function to get peak 
@@ -82,10 +90,20 @@ simFreqTest_time = 1000;
 
 % Phase 1.2
 % freqs will be on center
-% powerLogRange = 1:0.25:2.25;
-powerLogRange = 1.5:0.05:1.75;
+powerLogRange = [1:0.25:2.25]; 
+% powerLogRange = 1.5:0.05:1.75;
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
+
+%%% Should do second step to get fine values
+
+% Phase 1.3 - scan across freq
+simFineTest_freqs = 7.5:0.5:9.5;
+simFineTest_powers = round(10.^[1.75 2 2.25]);
+simFineTest_time = simFreqTest_time;
+
+fine_freqCols = winter(length(simFineTest_freqs));
+fine_powerCols = cool(length(simFineTest_powers));
 
 % Make simulated plots
 % Set up image
@@ -135,8 +153,17 @@ for i = 1:length(simFreqTest_freqs)
     % Will always be above on this phase, but keep for consistancy
     if simFreqTest_power > powerThresholdInterp_freqTest(i)   
 
-        powerVal = powerLinearA*(log10(simFreqTest_power))+powerLinearB;
-
+        if useWeibullPower
+            if log10(simFreqTest_power) > weibullThreshold
+                powerVal = 1-exp(-weibullAlpha * ...
+                    (log10(simFreqTest_power)-weibullThreshold)^weibullBeta);
+            else
+               powerVal = 0; 
+            end
+        else
+            powerVal = powerLinearA*(log10(simFreqTest_power))+powerLinearB;
+        end
+        
         totalVal = powerVal * curveVal;
         totalVal(totalVal > 100) = 100;
         totalVal(totalVal < 0) = 0;
@@ -300,7 +327,16 @@ for i = 1:length(simPowerTest_freqs)
     for j = 1:length(simPowerTest_powers)
 
         if simPowerTest_powers(j) > powerThresholdInterp_powerTest(i)
-            powerVal = powerLinearA*(log10(simPowerTest_powers(j)))+powerLinearB;    
+            if useWeibullPower
+                if log10(simPowerTest_powers(j)) > weibullThreshold
+                    powerVal = 1-exp(-weibullAlpha * ...
+                        (log10(simPowerTest_powers(j))-weibullThreshold)^weibullBeta);
+                else
+                   powerVal = 0; 
+                end
+            else
+                powerVal = powerLinearA*(log10(simPowerTest_powers(j)))+powerLinearB;    
+            end
             
             totalVal = powerVal * curveVal;
             totalVal(totalVal > 100) = 100;     
@@ -329,6 +365,7 @@ for j = 1:length(simPowerTest_powers)
 end
 plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
 
+plot(log10(permute(simPowerTest_powerRef(1,:,1), [3 2 1])), permute(simPowerTest_inactRef(1,:,1), [3 2 1]), 'm', 'linewidth', 2)
 
 inactRatioBySize = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps, length(influenzaSize));
 
@@ -439,6 +476,10 @@ if distStep == 1
 elseif distStep == 0.5
     maxFreqInd = 101; % for 0.5 step...
     % seems more stable against shifting
+elseif distStep == 5
+    maxFreqInd = 11;
+elseif distStep == 2
+    maxFreqInd = 26;
 else
     error('Need to find min diststep')
 end
@@ -459,3 +500,207 @@ for j = 1:length(simPowerTest_powers)
 end
 plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
 
+%% Phase 1.3 scan across freq
+
+simFineTest_inact = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps);
+simFineTest_inactRef = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps);
+simFineTest_freqRef = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps);
+simFineTest_powerRef = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps);
+
+% Get matched roots across freq
+if length(powerThreshold) == 1
+    powerThresholdInterp_powerTest = powerThreshold*ones(length(simFineTest_freqs),1);
+else
+    powerThresholdInterp_powerTest = interp1(powerThresholdFreqs, powerThreshold, simFineTest_freqs, 'linear',0);
+    powerThresholdInterp_powerTest(powerThresholdInterp_powerTest == 0) = interp1(powerThresholdFreqs, powerThreshold, ...
+        simFineTest_freqs(powerThresholdInterp_powerTest == 0), 'nearest','extrap');
+end
+
+for i = 1:length(simFineTest_freqs)
+
+    curveVal = curveMax*exp(-(simFineTest_freqs(i)-curveCenter).^2/(2*curveSpread^2));
+    
+    for j = 1:length(simFineTest_powers)
+
+        if simFineTest_powers(j) > powerThresholdInterp_powerTest(i)
+            if useWeibullPower
+                if log10(simFineTest_powers(j)) > weibullThreshold
+                    powerVal = 1-exp(-weibullAlpha * ...
+                        (log10(simFineTest_powers(j))-weibullThreshold)^weibullBeta);
+                else
+                   powerVal = 0; 
+                end
+            else
+                powerVal = powerLinearA*(log10(simFineTest_powers(j)))+powerLinearB;    
+            end
+            
+            totalVal = powerVal * curveVal;
+            totalVal(totalVal > 100) = 100;     
+            totalVal(totalVal < 0) = 0;
+
+            simFineTest_inactRef(i,j,:) = totalVal;
+            
+            simFineTest_inact(i,j,:) = totalVal + absStd*randn(nReps,1);
+        else
+            simFineTest_inact(i,j,:) = absStd*randn(nReps,1); %
+        end
+        
+        simFineTest_freqRef(i,j,:) = simFineTest_freqs(i);
+        simFineTest_powerRef(i,j,:) = simFineTest_powers(j);
+    end
+end
+
+simFineTest_inact(simFineTest_inact > 100) = 100;
+
+% Plot power curve
+figure; 
+subplot(3,length(simFineTest_freqs),1); hold on
+
+for i = 1:length(simFineTest_freqs)
+    for j = 1:length(simFineTest_powers)
+        plot(log10(permute(simFineTest_powerRef(i,j,:), [3 2 1])), permute(simFineTest_inact(i,j,:), [3 2 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', fine_freqCols(i,:))
+    end
+end
+
+plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
+
+% plot(log10(permute(simFineTest_powerRef(1,:,1), [3 2 1])), permute(simFineTest_inactRef(1,:,1), [3 2 1]), 'm', 'linewidth', 2)
+
+inactRatioBySize = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps, length(influenzaSize));
+
+inactFractionBySize = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps, length(influenzaSize));
+
+activeBySize = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps, length(influenzaSize));
+
+%%% Main to do here
+%%%     1. scale active virus particle dist sides to match original dist
+%%%     2. Pick drop in dist/peak innact and track as it gets lower - otherwise centre point needs to be regularly adjusted
+            % May move by dist
+
+%%% Make a function for this, will use later
+for i = 1:length(simFineTest_freqs)
+    
+    subplot(3,length(simFineTest_freqs),length(simFineTest_freqs)+i); hold on
+    plot(influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
+        
+    for j = 1:length(simFineTest_powers)
+        for k = 1:nReps
+            tempSize_samples = randn(testCountNum,1)*influenzaSize_std + influenzaSize_mean;
+
+            tempSize_samples = sort(tempSize_samples, 'descend');
+
+            tempSize_freqs = 1./(tempSize_samples/2)*resSlope;
+
+            samplesIntact = ones(testCountNum, 1);
+
+            % Start with reference before we figure out noise... 
+            numToInact = round(testCountNum*simFineTest_inactRef(i,j,1)/100);
+
+            %%% Set flag 
+    %         numToInact = round(testCountNum*simFineTest_inact(i,j,k)/100);
+            trueInact = round(testCountNum*simFineTest_inactRef(i,j,1)/100);
+
+            if numToInact > 1 & trueInact > 1
+                % Find nearest in sample
+                [~, minInd] = min(abs(tempSize_freqs-simFineTest_freqs(i)));
+
+                numInactivated = 1;
+
+                samplesIntact(minInd) = 0;
+
+                while numInactivated < numToInact
+                    % Find nearest
+                    if minInd + 1 > testCountNum
+                        minInd = minInd - 1;
+                    elseif minInd - 1 < 1
+                        minInd = minInd + 1;    
+                    else
+                        indRef = find(samplesIntact);
+
+                        [~, tempInd] = min(abs(tempSize_freqs(samplesIntact == 1)-simFineTest_freqs(i)));
+
+                        minInd = indRef(tempInd);
+                    end
+
+                    samplesIntact(minInd) = 0;
+
+                    numInactivated = numInactivated + 1;
+                end
+            end
+
+            % Get hist of both
+            inactiveDist = hist(tempSize_samples(samplesIntact == 0),influenzaSize);
+
+            activeDistDist = hist(tempSize_samples(samplesIntact == 1),influenzaSize);
+
+            % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
+            %%% However, should know proper ratio, which may require fitting sides of active distribution
+            zeroRatioInds = find(influenzaSize_dist/initialCountNum*100 < stepPercent);
+
+            zeroFractionInds = find((activeDistDist+inactiveDist)/testCountNum*100 < stepPercent);
+
+            inactRatioBySize(i,j,k,:) = (1 - (activeDistDist/testCountNum)./(influenzaSize_dist/initialCountNum))*100;
+
+            inactRatioBySize(i,j,k,zeroRatioInds) = 0;
+
+            inactFractionBySize(i,j,k,:) = (1 - (activeDistDist./(activeDistDist+inactiveDist)))*100;
+
+            inactFractionBySize(i,j,k,zeroFractionInds) = 0;
+
+            activeBySize(i,j,k,:) = activeDistDist/testCountNum*100;
+
+            % Counted inactivated
+            subplot(3,length(simFineTest_freqs),length(simFineTest_freqs)+i); hold on
+
+%             plot((activeDistDist+inactiveDist)/testCountNum*100, 'r') %activeDistDist+
+
+    %         plot(influenzaSize, (inactiveDist)/testCountNum*100, 'r')
+
+            plot(activeDistDist/testCountNum*100, 'color', fine_powerCols(j,:))
+
+            %inactivation spectrum
+            subplot(3,length(simFineTest_freqs),2*length(simFineTest_freqs)+i); hold on
+
+            plot(permute(inactRatioBySize(i,j,k,:), [4 3 2 1]), 'color', fine_powerCols(j,:));
+            ylim([-50 100])
+        end
+    end
+end
+
+% Getting this spot on is hard - may need to do manually...
+% Need to set this better
+if distStep == 1
+    %%% Somehow this shifts around depending on number of samples...
+    % moves by dist
+    maxFreqInd = 52; % for 1 step...
+    %51 for 1000, 52 for 1000
+elseif distStep == 0.5
+    maxFreqInd = 101; % for 0.5 step...
+    % seems more stable against shifting
+elseif distStep == 5
+    maxFreqInd = 11;
+elseif distStep == 2
+    maxFreqInd = 26;
+else
+    error('Need to find min diststep')
+end
+
+% Given count
+subplot(3,length(simFineTest_freqs),2); hold on
+
+for i = 1:length(simFineTest_freqs)
+    for j = 1:length(simFineTest_powers)
+        plot(log10(permute(simFineTest_powerRef(i,j,:), [3 2 1])), permute(inactFractionBySize(i,j,:, maxFreqInd), [4 3 2 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', fine_freqCols(i,:))
+    end
+end
+plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
+
+% Given original
+subplot(3,length(simFineTest_freqs),3); hold on
+
+for i = 1:length(simFineTest_freqs)
+    for j = 1:length(simFineTest_powers)
+        plot(log10(permute(simFineTest_powerRef(i,j,:), [3 2 1])), permute(inactRatioBySize(i,j,:,maxFreqInd), [4 3 2 1]), 'o', 'linewidth', 2, 'markersize', 4, 'color', fine_freqCols(i,:))
+    end
+end
+plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
