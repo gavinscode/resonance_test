@@ -199,7 +199,22 @@ for i = 1:length(simFreqTest_freqs)
         powerVal = 0;
     end
 
-    totalVal = powerVal * curveVal;
+    % Scale for time, again, should always be 1
+    powerScale = log10(simFreqTest_power)/timeWeibullPowerCenter;  
+    powerScale = 1 + (powerScale-1)*timeWeibullPowerScale;
+    
+    if powerScale < 0.01
+        powerScale = 0.01;
+    end
+    
+    if log10(simFreqTest_time*powerScale) >= timeWeibullThreshold                   
+       timeVal = 1-exp(-timeWeibullAlpha* ...
+                (log10(simFreqTest_time*powerScale)-timeWeibullThreshold)^timeWeibullBeta); 
+    else
+        timeVal = 0;
+    end
+    
+    totalVal = timeVal * powerVal * curveVal;
     totalVal(totalVal > 100) = 100;
     totalVal(totalVal < 0) = 0;
         
@@ -296,7 +311,7 @@ plot(freqRangeFine, freq_curveConfidence, 'r--', 'linewidth', 2);
 % plot(simFreqTest_FreqRef(:,1), simFreqTest_inactRef(:,1), 'm-')
 
 % Show resonance distribution
-plot(influenzSize_resonances, influenzaSize_dist, '-b', 'linewidth', 2)
+plot(influenzSize_resonances, influenzaSize_dist/sum(influenzaSize_dist)*50, '-b', 'linewidth', 2)
 
 % show image
 % Place freq inactivation in map
@@ -330,6 +345,10 @@ plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
 %% Phase 1.2 - power
 
+if length(simPowerTest_freqs) ~= 1
+    warning('1st power test configured for single freq')
+end
+
 simPowerTest_inact = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_inactRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
 simPowerTest_freqRef = zeros(length(simPowerTest_freqs), length(simPowerTest_powers), nReps);
@@ -344,12 +363,13 @@ else
         simPowerTest_freqs(powerThresholdInterp_powerTest == 0), 'nearest','extrap');
 end
 
-for i = 1:length(simPowerTest_freqs)
+for i = 1
 
     curveVal = curveMax*exp(-(simPowerTest_freqs(i)-curveCenter).^2/(2*curveSpread^2));
     
     for j = 1:length(simPowerTest_powers)
 
+        % Scale for power
         if simPowerTest_powers(j) > powerThresholdInterp_powerTest(i)
             if useWeibullPower
                 if log10(simPowerTest_powers(j)) >= powerWeibullThreshold
@@ -365,7 +385,22 @@ for i = 1:length(simPowerTest_freqs)
             powerVal = 0;
         end
         
-        totalVal = powerVal * curveVal;
+        % Scale for time
+        powerScale = log10(simPowerTest_powers(j))/timeWeibullPowerCenter;   
+        powerScale = 1 + (powerScale-1)*timeWeibullPowerScale;
+
+        if powerScale < 0.01
+            powerScale = 0.01;
+        end
+        
+        if log10(simPowerTest_time*powerScale) >= timeWeibullThreshold                   
+           timeVal = 1-exp(-timeWeibullAlpha* ...
+                    (log10(simPowerTest_time*powerScale)-timeWeibullThreshold)^timeWeibullBeta); 
+        else
+            timeVal = 0;
+        end
+
+        totalVal = timeVal * powerVal * curveVal;
         totalVal(totalVal > 100) = 100;     
         totalVal(totalVal < 0) = 0;
 
@@ -383,7 +418,7 @@ simPowerTest_inact(simPowerTest_inact > 100) = 100;
 figure; 
 subplot(3,length(simPowerTest_powers),1); hold on
 
-for i = 1:length(simPowerTest_freqs)
+for i = 1
     for j = 1:length(simPowerTest_powers)
         toPlot = setxor(countVec, 1:nReps);
 
@@ -531,18 +566,12 @@ end
 subplot(3,length(simPowerTest_powers),4); hold on
 for i = 1
     for j = 1:length(simPowerTest_powers)
-        plot(log10(permute(simPowerTest_powerRef(1,j,countVec), [3 2 1])), permute(totalInact(1,j,countVec), [4 3 2 1]), 'rx', 'markersize', markerSize)
+        plot(permute(totalInact(i,j,countVec), [4 3 2 1]),  permute(simPowerTest_inact(i,j,countVec), [3 2 1]), 'ro', 'markersize', markerSize)
     end
 end
 
-for i = 1
-    for j = 1:length(simPowerTest_powers)
-        plot(log10(permute(simPowerTest_powerRef(i,j,countVec), [3 2 1])), permute(simPowerTest_inact(i,j,countVec), [3 2 1]), 'r*', 'markersize', markerSize)
-    end
-end
-
-plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 3])
+line([0 100], [0 100])
+ylim([0 100]); xlim([0 100]); 
 
 
 % Inact from counted both across range
@@ -576,17 +605,17 @@ for i = 1
     for j = 1:length(simPowerTest_powers)
         for k = countVec
             if maxInactBounds(i,j,k,1) ~= maxInactBounds(i,j,k,2)
-            line(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1]))*[1 1], permute(maxInactBounds(i,j,k,:), [4 3 2 1])*10^9,...
-                'color', 'r', 'linewidth', 2)
-            else
-                if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100
-                    plot(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
-                        'r.', 'markersize', 8)
+                line(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1]))*[1 1], permute(maxInactBounds(i,j,k,:), [4 3 2 1])*10^9,...
+                    'color', 'r', 'linewidth', 2)
                 else
-                    plot(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
-                        'ro', 'markersize', 4)
+                    if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100
+                        plot(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
+                            'r.', 'markersize', 8)
+                    else
+                        plot(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
+                            'ro', 'markersize', 4)
+                    end
                 end
-            end
         end
     end
 end
@@ -614,6 +643,7 @@ for i = 1:length(simFineTest_freqs)
     
     for j = 1:length(simFineTest_powers)
 
+        % scale for power
         if simFineTest_powers(j) > powerThresholdInterp_powerTest(i)
             if useWeibullPower
                 if log10(simFineTest_powers(j)) >= powerWeibullThreshold
@@ -629,7 +659,22 @@ for i = 1:length(simFineTest_freqs)
             powerVal = 0;
         end
         
-        totalVal = powerVal * curveVal;
+        % Scale for time
+        powerScale = log10(simFineTest_powers(j))/timeWeibullPowerCenter;   
+        powerScale = 1 + (powerScale-1)*timeWeibullPowerScale;
+
+        if powerScale < 0.01
+            powerScale = 0.01;
+        end
+        
+        if log10(simFineTest_time*powerScale) >= timeWeibullThreshold                   
+           timeVal = 1-exp(-timeWeibullAlpha* ...
+                    (log10(simFineTest_time*powerScale)-timeWeibullThreshold)^timeWeibullBeta); 
+        else
+            timeVal = 0;
+        end
+
+        totalVal = timeVal * powerVal * curveVal;
         totalVal(totalVal > 100) = 100;     
         totalVal(totalVal < 0) = 0;
 
@@ -793,19 +838,12 @@ end
 subplot(3,length(simFineTest_freqs),4); hold on
 for i = 1:length(simFineTest_freqs)
     for j = 1:length(simFineTest_powers)
-        plot3(log10(permute(simFineTest_powerRef(i,j,countVec), [3 2 1])), permute(totalInact(i,j,countVec), [4 3 2 1]), permute(simFineTest_freqRef(i,j,countVec), [3 2 1]), ...
-            'x', 'markersize', markerSize, 'color', fine_freqCols(i,:))
-    end
-end
 
-for i = 1:length(simFineTest_freqs)
-    for j = 1:length(simFineTest_powers)       
-        plot3(log10(permute(simFineTest_powerRef(i,j,countVec), [3 2 1])), permute(simFineTest_inact(i,j,countVec), [3 2 1]), permute(simFineTest_freqRef(i,j,countVec), [3 2 1]), ...
-            '*', 'markersize', markerSize, 'color', fine_freqCols(i,:));
+        plot(permute(totalInact(i,j,countVec), [4 3 2 1]), permute(simFineTest_inact(i,j,countVec), [3 2 1]), 'o', 'markersize', markerSize, 'color', fine_freqCols(i,:))
     end
 end
-plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 3])
+line([0 100], [0 100])
+ylim([0 100]); xlim([0 100]);
 
 % Inact from counted both across range
 subplot(3,length(simFineTest_freqs),2); hold on
@@ -845,7 +883,7 @@ for i = 1:length(simFineTest_freqs)
                 if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100
                     plot3(log10(permute(simFineTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9, permute(simFineTest_freqRef(i,j,countVec), [3 2 1]),...
                         '.', 'color', fine_freqCols(i,:), 'markersize', 8)
-                else
+                elseif inactRatioBySize(i,j,k,maxInactInd(i,j,k)) > 25
                     plot3(log10(permute(simFineTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9, permute(simFineTest_freqRef(i,j,countVec), [3 2 1]),...
                         'o', 'color', fine_freqCols(i,:), 'markersize', 4)
                 end
@@ -858,6 +896,10 @@ ylim([80 120])
 xlim([1 3])
 
 %% Phase 1.4 - test time
+
+if length(simTimeTest_freqs) ~= 1
+    warning('1st time test configured for single freq')
+end
 
 simTimeTest_inact = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nReps);
 simTimeTest_inactRef = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nReps);
@@ -875,7 +917,7 @@ else
         simTimeTest_freqs(powerThresholdInterp_powerTest == 0), 'nearest','extrap');
 end
 
-for i = 1:length(simTimeTest_freqs)
+for i = 1
 
     curveVal = curveMax*exp(-(simTimeTest_freqs(i)-curveCenter).^2/(2*curveSpread^2));
     
@@ -899,8 +941,11 @@ for i = 1:length(simTimeTest_freqs)
         
         for k = 1:length(simTimeTest_times)
             powerScale = log10(simTimeTest_powers(j))/timeWeibullPowerCenter;
-            
             powerScale = 1 + (powerScale-1)*timeWeibullPowerScale;
+            
+            if powerScale < 0.01
+                powerScale = 0.01;
+            end
             
             if log10(simTimeTest_times(k)*powerScale) >= timeWeibullThreshold                   
                timeVal = 1-exp(-timeWeibullAlpha* ...
@@ -927,9 +972,9 @@ simTimeTest_inact(simTimeTest_inact > 100) = 100;
 
 % Plot power curve
 figure; 
-subplot(4,length(simTimeTest_powers),1); hold on
+subplot(4,length(simTimeTest_times),1); hold on
 
-for i = 1:length(simTimeTest_freqs)
+for i = 1
     for j = 1:length(simTimeTest_powers)
         for k = 1:length(simTimeTest_times)
             toPlot = setxor(countVec, 1:nReps);
@@ -952,7 +997,7 @@ plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2
 xlim([1 3])
 
 % Plot time curve
-subplot(4,length(simTimeTest_powers),length(simTimeTest_powers)+1); hold on
+subplot(4,length(simTimeTest_times),length(simTimeTest_times)+1); hold on
 
 for i = 1:length(simTimeTest_freqs)
     for j = 1:length(simTimeTest_powers)
@@ -976,189 +1021,263 @@ plot3(log10(permute(simTimeTest_timeRef(1,1,:,1), [3 1 2 4])), permute(simTimeTe
 
 xlim([-3 3])
 
-inactRatioBySize = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), nrepsCount, length(influenzaSize));
 
-inactFractionBySize = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), nrepsCount, length(influenzaSize));
+inactRatioBySize = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nrepsCount, length(influenzaSize));
 
-activeBySize = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), nrepsCount, length(influenzaSize));
+inactFractionBySize = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nrepsCount, length(influenzaSize));
 
-totalInact = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), nrepsCount);
+activeBySize = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nrepsCount, length(influenzaSize));
+
+totalInact = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nrepsCount);
 
 
-inactInds = cell(length(simTimeTest_freqs), length(simTimeTest_powers));
+inactInds = cell(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times));
 
-maxInactInd = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), nrepsCount); % if more than 1 equal, will just be one 
+maxInactInd = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nrepsCount); % if more than 1 equal, will just be one 
 
-maxInactBounds = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), nrepsCount, 2);
+maxInactBounds = zeros(length(simTimeTest_freqs), length(simTimeTest_powers), length(simTimeTest_times), nrepsCount, 2);
 
 %%% Make a function for this, will use later
 for i = 1
     for j = fliplr(1:length(simTimeTest_powers))
+        
+        for k = fliplr(1:length(simTimeTest_times))
+            
+            subplot(4,length(simTimeTest_times),2*length(simTimeTest_times)+k); hold on
+            plot(influenzaSize*10^9, influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
+        
+            for l = countVec
+                tempSize_samples = randn(testCountNum,1)*influenzaSize_std + influenzaSize_mean;
 
-        subplot(3,length(simTimeTest_powers),length(simTimeTest_powers)+j); hold on
-        plot(influenzaSize*10^9, influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
+                tempSize_samples = sort(tempSize_samples, 'descend');
 
-        for k = countVec
-            tempSize_samples = randn(testCountNum,1)*influenzaSize_std + influenzaSize_mean;
+                tempSize_freqs = 1./(tempSize_samples/2)*resSlope;
 
-            tempSize_samples = sort(tempSize_samples, 'descend');
+                samplesIntact = ones(testCountNum, 1);
 
-            tempSize_freqs = 1./(tempSize_samples/2)*resSlope;
+                % Start with reference before we figure out noise... 
+                numToInact = round(testCountNum*simTimeTest_inactRef(i,j,k,l)/100);
 
-            samplesIntact = ones(testCountNum, 1);
+                if numToInact > 1 
+                    % Find nearest in sample
+                    [~, minInd] = min(abs(tempSize_freqs-simTimeTest_freqs(i)));
 
-            % Start with reference before we figure out noise... 
-            numToInact = round(testCountNum*simTimeTest_inactRef(i,j,k)/100);
-
-            if numToInact > 1 
-                % Find nearest in sample
-                [~, minInd] = min(abs(tempSize_freqs-simTimeTest_freqs(i)));
-
-                numInactivated = 1;
-
-                samplesIntact(minInd) = 0;
-
-                while numInactivated < numToInact
-                    % Find nearest
-                    if minInd + 1 > testCountNum
-                        minInd = minInd - 1;
-                    elseif minInd - 1 < 1
-                        minInd = minInd + 1;    
-                    else
-                        indRef = find(samplesIntact);
-
-                        [~, tempInd] = min(abs(tempSize_freqs(samplesIntact == 1)-simTimeTest_freqs(i)));
-
-                        minInd = indRef(tempInd);
-                    end
+                    numInactivated = 1;
 
                     samplesIntact(minInd) = 0;
 
-                    numInactivated = numInactivated + 1;
+                    while numInactivated < numToInact
+                        % Find nearest
+                        if minInd + 1 > testCountNum
+                            minInd = minInd - 1;
+                        elseif minInd - 1 < 1
+                            minInd = minInd + 1;    
+                        else
+                            indRef = find(samplesIntact);
+
+                            [~, tempInd] = min(abs(tempSize_freqs(samplesIntact == 1)-simTimeTest_freqs(i)));
+
+                            minInd = indRef(tempInd);
+                        end
+
+                        samplesIntact(minInd) = 0;
+
+                        numInactivated = numInactivated + 1;
+                    end
                 end
-            end
 
-            % Get hist of both
-            inactiveDist = hist(tempSize_samples(samplesIntact == 0),influenzaSize);
+                % Get hist of both
+                inactiveDist = hist(tempSize_samples(samplesIntact == 0),influenzaSize);
 
-            activeDistDist = hist(tempSize_samples(samplesIntact == 1),influenzaSize);
+                activeDistDist = hist(tempSize_samples(samplesIntact == 1),influenzaSize);
 
-            % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
-            %%% However, should know proper ratio, which may require fitting sides of active distribution
-            zeroRatioInds = find(influenzaSize_dist/initialCountNum*100 < stepPercent);
+                % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
+                %%% However, should know proper ratio, which may require fitting sides of active distribution
+                zeroRatioInds = find(influenzaSize_dist/initialCountNum*100 < stepPercent);
 
-            zeroFractionInds = find((activeDistDist+inactiveDist)/testCountNum*100 < stepPercent);
+                zeroFractionInds = find((activeDistDist+inactiveDist)/testCountNum*100 < stepPercent);
 
-            inactRatioBySize(i,j,k,:) = (1 - (activeDistDist/testCountNum)./(influenzaSize_dist/initialCountNum))*100;
+                inactRatioBySize(i,j,k,l,:) = (1 - (activeDistDist/testCountNum)./(influenzaSize_dist/initialCountNum))*100;
 
-            inactRatioBySize(i,j,k,zeroRatioInds) = 0;
+                inactRatioBySize(i,j,k,l,zeroRatioInds) = 0;
 
-            inactFractionBySize(i,j,k,:) = (1 - (activeDistDist./(activeDistDist+inactiveDist)))*100;
+                inactFractionBySize(i,j,k,l,:) = (1 - (activeDistDist./(activeDistDist+inactiveDist)))*100;
 
-            inactFractionBySize(i,j,k,zeroFractionInds) = 0;
+                inactFractionBySize(i,j,k,l,zeroFractionInds) = 0;
 
-            activeBySize(i,j,k,:) = activeDistDist/testCountNum*100;
+                activeBySize(i,j,k,l,:) = activeDistDist/testCountNum*100;
 
-            totalInact(i,j,k) = (1-sum(activeDistDist)/testCountNum)*100;
+                totalInact(i,j,k,l) = (1-sum(activeDistDist)/testCountNum)*100;
 
-            % get inds and ranges on inactivation spectrum
-            
-            % find max
-            if length(simTimeTest_powers) == j
-                referenceRange = find(inactRatioBySize(i,j,k,:) == max(inactRatioBySize(i,j,k,:)));
-                
-                referenceRange = union(inactInds{i,j}, referenceRange);
-            else
-                referenceRange = inactInds{i, j+1};
-            end
-            
-            [maxInact, tempInd] = max(inactRatioBySize(i,j,k,referenceRange));
-            
-            maxInactInd(i,j,k) = referenceRange(tempInd);
-            
-            % Note that union is used so that this would grow across multiple count replicats
-            tempInactInds = referenceRange(inactRatioBySize(i,j,k,referenceRange) == maxInact);
-            
-            inactInds{i,j} = union(tempInactInds, inactInds{i,j});
-            
-            maxInactBounds(i,j,k,:) = influenzaSize(tempInactInds([1 end]));    
-            
-            % plotting spectra - counted of inactivated
-            subplot(3,length(simTimeTest_powers),length(simTimeTest_powers)+j); hold on
+                % get inds and ranges on inactivation spectrum
 
-            plot(influenzaSize*10^9, activeDistDist/testCountNum*100, 'k')
+                % find max
+                if length(simTimeTest_powers) == j && length(simTimeTest_times) == k
+                    referenceRange = find(inactRatioBySize(i,j,k,l,:) == max(inactRatioBySize(i,j,k,l,:)));
 
-            % inactivation spectrum
-            subplot(3,length(simTimeTest_powers),2*length(simTimeTest_powers)+j); hold on
-
-            plot(influenzaSize*10^9, permute(inactRatioBySize(i,j,k,:), [4 3 2 1]), 'k');
-            ylim([-50 100])
-        end
-    end
-end
-
-% inact from counted intact summed
-subplot(3,length(simTimeTest_powers),4); hold on
-for i = 1
-    for j = 1:length(simTimeTest_powers)
-        plot(log10(permute(simTimeTest_powerRef(1,j,countVec), [3 2 1])), permute(totalInact(1,j,countVec), [4 3 2 1]), 'rx', 'markersize', markerSize)
-    end
-end
-
-for i = 1
-    for j = 1:length(simTimeTest_powers)
-        plot(log10(permute(simTimeTest_powerRef(i,j,countVec), [3 2 1])), permute(simTimeTest_inact(i,j,countVec), [3 2 1]), 'r*', 'markersize', markerSize)
-    end
-end
-
-plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 3])
-
-
-% Inact from counted both across range
-subplot(3,length(simTimeTest_powers),2); hold on
-
-for i = 1
-    for j = 1:length(simTimeTest_powers)
-        plot(log10(permute(simTimeTest_powerRef(i,j,countVec), [3 2 1])), permute(inactFractionBySize(i,j,countVec, maxInactInd(i,j,countVec)), [4, 3 2 1]),...
-            'rx', 'markersize', markerSize)
-    end
-end
-plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 3])
-
-% Inact from counted intact across range
-subplot(3,length(simTimeTest_powers),3); hold on
-for i = 1
-    for j = 1:length(simTimeTest_powers)
-        plot(log10(permute(simTimeTest_powerRef(i,j,countVec), [3 2 1])), permute(inactRatioBySize(i,j,countVec,maxInactInd(i,j,countVec)), [4 3 2 1]),...
-            'rx', 'markersize', markerSize)
-    end
-end
-plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
-xlim([1 3])
-
-% Plot inactivation width
-
-%%% Could use thickness or color to indicate number inactivated
-subplot(3,length(simTimeTest_powers),5); hold on
-for i = 1
-    for j = 1:length(simTimeTest_powers)
-        for k = countVec
-            if maxInactBounds(i,j,k,1) ~= maxInactBounds(i,j,k,2)
-            line(log10(permute(simTimeTest_powerRef(i,j,k), [3 2 1]))*[1 1], permute(maxInactBounds(i,j,k,:), [4 3 2 1])*10^9,...
-                'color', 'r', 'linewidth', 2)
-            else
-                if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100
-                    plot(log10(permute(simTimeTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
-                        'r.', 'markersize', 8)
+                    referenceRange = union(inactInds{i,j,k}, referenceRange);
+                elseif length(simTimeTest_powers) == j 
+                    referenceRange = inactInds{i, j,k+1};
+                    
                 else
-                    plot(log10(permute(simTimeTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
-                        'ro', 'markersize', 4)
+                    referenceRange = inactInds{i, j+1,k};
                 end
+
+                [maxInact, tempInd] = max(inactRatioBySize(i,j,k,l,referenceRange));
+
+                maxInactInd(i,j,k,l) = referenceRange(tempInd);
+
+                % Note that union is used so that this would grow across multiple count replicats
+                tempInactInds = referenceRange(inactRatioBySize(i,j,k,l,referenceRange) == maxInact);
+
+                inactInds{i,j,k} = union(tempInactInds, inactInds{i,j,k});
+
+                maxInactBounds(i,j,k,l,:) = influenzaSize(tempInactInds([1 end]));    
+
+                % plotting spectra - counted of inactivated
+                subplot(4,length(simTimeTest_times),2*length(simTimeTest_times)+k); hold on
+
+                plot(influenzaSize*10^9, activeDistDist/testCountNum*100, 'color', time_powerCols(j,:))
+
+                % inactivation spectrum
+                subplot(4,length(simTimeTest_times),3*length(simTimeTest_times)+k); hold on
+
+                plot(influenzaSize*10^9, permute(inactRatioBySize(i,j,k,l,:), [5 4 3 2 1]), 'color', time_powerCols(j,:));
+                ylim([-50 100])
             end
         end
     end
 end
-ylim([80 120])
-xlim([1 3])
+
+%%% Factored by power, 1st line
+    % inact from counted intact summed
+    subplot(4,length(simTimeTest_times),4); hold on
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                plot(permute(totalInact(i,j,k,countVec), [4 3 2 1]), permute(simTimeTest_inact(i,j,k,countVec), [4 3 2 1]), 'o', 'color', time_timeCols(k,:), 'markersize', markerSize);
+            end
+        end
+    end
+    line([0 100], [0 100])
+    ylim([0 100]); xlim([0 100]); 
+
+    % Inact from counted both across range
+    subplot(4,length(simTimeTest_times),2); hold on
+
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                plot3(log10(permute(simTimeTest_powerRef(i,j,k,countVec), [4 3 2 1])), permute(inactFractionBySize(i,j,k,countVec, maxInactInd(i,j,k,countVec)), [5 4 3 2 1]), log10(permute(simTimeTest_timeRef(i,j,k,countVec), [4 3 2 1])),...
+                    'x', 'markersize', markerSize, 'color', time_timeCols(k,:))
+            end
+        end
+    end
+    plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
+    xlim([1 3])
+
+    % Inact from counted intact across range
+    subplot(4,length(simTimeTest_times),3); hold on
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                plot3(log10(permute(simTimeTest_powerRef(i,j,k,countVec), [4 3 2 1])), permute(inactRatioBySize(i,j,k,countVec,maxInactInd(i,j,k,countVec)), [5 4 3 2 1]), log10(permute(simTimeTest_timeRef(i,j,k,countVec), [4 3 2 1])), ...
+                    'x', 'markersize', markerSize, 'color', time_timeCols(k,:))
+            end
+        end
+    end
+    plot(log10(dataInactPower2016(:,1)), dataInactPower2016(:,2), '-', 'linewidth',2, 'color', [0.5 0.5 0.5])
+    xlim([1 3])
+
+    % Plot inactivation width
+
+    %%% Could use thickness or color to indicate number inactivated
+    subplot(4,length(simTimeTest_times),5); hold on
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                for l = countVec
+                    if maxInactBounds(i,j,k,l,1) ~= maxInactBounds(i,j,k,l,2)
+                        line(log10(permute(simTimeTest_powerRef(i,j,k,l), [4 3 2 1]))*[1 1], permute(maxInactBounds(i,j,k,l,:), [5 4 3 2 1])*10^9, log10(permute(simTimeTest_timeRef(i,j,k,l), [4 3 2 1]))*[1 1], ...
+                            'color', time_timeCols(k,:), 'linewidth', 2)
+                    else
+                        if inactRatioBySize(i,j,k,l,maxInactInd(i,j,k,l)) == 100
+                            plot3(log10(permute(simTimeTest_powerRef(i,j,k,l), [4 3 2 1])), permute(maxInactBounds(i,j,k,l,1), [5 4 3 2 1])*10^9, log10(permute(simTimeTest_timeRef(i,j,k,l), [4 3 2 1])), ...
+                                '.', 'markersize', 8, 'color', time_timeCols(k,:))
+                        elseif inactRatioBySize(i,j,k,l,maxInactInd(i,j,k,l)) > 25
+                            plot3(log10(permute(simTimeTest_powerRef(i,j,k,l), [4 3 2 1])), permute(maxInactBounds(i,j,k,l,1), [5 4 3 2 1])*10^9, log10(permute(simTimeTest_timeRef(i,j,k,l), [4 3 2 1])), ...
+                                'o', 'markersize', 4, 'color', time_timeCols(k,:))
+                        end
+                    end
+                end
+            end
+        end
+    end
+    ylim([80 120])
+    xlim([1 3])
+    
+%%% Factored by time, second line
+% inact from counted intact summed
+    subplot(4,length(simTimeTest_times),length(simTimeTest_times)+4); hold on
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                plot(permute(totalInact(i,j,k,countVec), [4 3 2 1]), permute(simTimeTest_inact(i,j,k,countVec), [4 3 2 1]), 'o', 'color', time_powerCols(j,:), 'markersize', markerSize);
+            end
+        end
+    end
+    line([0 100], [0 100])
+    ylim([0 100]); xlim([0 100]); 
+
+    % Inact from counted both across range
+    subplot(4,length(simTimeTest_times),length(simTimeTest_times)+2); hold on
+
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                plot3(log10(permute(simTimeTest_timeRef(i,j,k,countVec), [4 3 2 1])), permute(inactFractionBySize(i,j,k,countVec, maxInactInd(i,j,k,countVec)), [5 4 3 2 1]), log10(permute(simTimeTest_powerRef(i,j,k,countVec), [4 3 2 1])), ...
+                    'x', 'markersize', markerSize, 'color', time_powerCols(j,:))
+            end
+        end
+    end
+    xlim([-3 3])
+
+    % Inact from counted intact across range
+    subplot(4,length(simTimeTest_times),length(simTimeTest_times)+3); hold on
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                plot3(log10(permute(simTimeTest_timeRef(i,j,k,countVec), [4 3 2 1])), permute(inactRatioBySize(i,j,k,countVec,maxInactInd(i,j,k,countVec)), [5 4 3 2 1]), log10(permute(simTimeTest_powerRef(i,j,k,countVec), [4 3 2 1])), ...
+                    'x', 'markersize', markerSize, 'color', time_powerCols(j,:))
+            end
+        end
+    end
+    xlim([-3 3])
+
+    % Plot inactivation width
+
+    %%% Could use thickness or color to indicate number inactivated
+    subplot(4,length(simTimeTest_times),length(simTimeTest_times)+5); hold on
+    for i = 1
+        for j = 1:length(simTimeTest_powers)
+            for k = 1:length(simTimeTest_times)
+                for l = countVec
+                    if maxInactBounds(i,j,k,l,1) ~= maxInactBounds(i,j,k,l,2)
+                        line(log10(permute(simTimeTest_timeRef(i,j,k,l), [4 3 2 1]))*[1 1], permute(maxInactBounds(i,j,k,l,:), [5 4 3 2 1])*10^9, log10(permute(simTimeTest_powerRef(i,j,k,l), [4 3 2 1]))*[1 1], ...
+                            'color', time_powerCols(j,:), 'linewidth', 2) 
+                    else
+                        if inactRatioBySize(i,j,k,l,maxInactInd(i,j,k,l)) == 100
+                            plot3(log10(permute(simTimeTest_timeRef(i,j,k,l), [4 3 2 1])), permute(maxInactBounds(i,j,k,l,1), [5 4 3 2 1])*10^9, log10(permute(simTimeTest_powerRef(i,j,k,l), [4 3 2 1])), ...
+                                '.', 'markersize', 8, 'color', time_powerCols(j,:)) 
+                        elseif inactRatioBySize(i,j,k,l,maxInactInd(i,j,k,l)) > 25
+                            plot3(log10(permute(simTimeTest_timeRef(i,j,k,l), [4 3 2 1])), permute(maxInactBounds(i,j,k,l,1), [5 4 3 2 1])*10^9, log10(permute(simTimeTest_powerRef(i,j,k,l), [4 3 2 1])), ...
+                                'o', 'markersize', 4, 'color', time_powerCols(j,:)) 
+                        end
+                    end
+                end
+            end
+        end
+    end
+    ylim([80 120])
+    xlim([-3 3])
+    
