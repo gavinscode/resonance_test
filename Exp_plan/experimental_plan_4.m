@@ -15,7 +15,7 @@ distStep = 2; % Also percentage as across 100
 stepPercent = distStep;
 %%% May be some optimum way to set step to get best SNR later.
 
-[influenzaSize_dist, influenzaSize] = hist(influenzaSize_samples,(50:distStep:150)/10^9);
+[influenzaSize_dist, influenzaSize] = hist(influenzaSize_samples,(70:distStep:130)/10^9);
 
 [~, maxSizeInd] = max(influenzaSize_dist);
 
@@ -105,6 +105,8 @@ simFreqTest_freqs = 1:1:20;
 simFreqTest_power = 630;
 simFreqTest_time = 1000;
 
+freq_freqCols = jet(length(simFreqTest_freqs)); 
+
 % Phase 1.2 - identify power response (minimum effective) at center freq
 powerLogRange = [1:0.25:2.25]; % coarse search
 %%% Note neccersary to duplicate powers from previous step i.e. start at 1.55 and 1.7
@@ -134,6 +136,14 @@ simTimeTest_times = [0.001 0.01 0.1 1 10 100 1000];
 
 time_powerCols = cool(length(simTimeTest_powers));
 time_timeCols = copper(length(simTimeTest_times));
+
+% To record sensitivity results - should set references dynamically...
+sensitivity_FreqRef = 1:0.5:15;
+sensitvity_InactRef = 0:5:100;
+
+sensitivityBulk = zeros(length(sensitvity_InactRef), length(sensitivity_FreqRef));
+sensitivityIndividual = zeros(length(sensitvity_InactRef), length(sensitivity_FreqRef), length(influenzaSize) );
+sensitivityBulk_plaque = zeros(length(sensitvity_InactRef), length(sensitivity_FreqRef));
 
 % Make simulated plots
 % Set up image
@@ -240,12 +250,28 @@ freq_curveObserved = predint(freqCurve, freqRangeFine, 0.95, 'obs');
 
 simPowerTest_freqs = freqCurve.b1;
 
+
+
+inactRatioBySize = zeros(length(simFreqTest_freqs), nrepsCount, length(influenzaSize));
+
+inactFractionBySize = zeros(length(simFreqTest_freqs), nrepsCount, length(influenzaSize));
+
+activeBySize = zeros(length(simFreqTest_freqs), nrepsCount, length(influenzaSize));
+
+totalInact = zeros(length(simFreqTest_freqs), nrepsCount);
+
+maxInactInd = zeros(length(simFreqTest_freqs), nrepsCount); % if more than 1 equal, will just be one 
+
+maxInactBounds = zeros(length(simFreqTest_freqs), nrepsCount, 2);
+
 % Look at distributions - take for first result
-figure; hold on
+figure; 
+
+subplot(3,5,5+1); hold on
+plot(influenzaSize*10^9, influenzaSize_dist/initialCountNum*100, '-b', 'linewidth', 2)
 
 %%% Make a function for this, will use later
 for i = 1:length(simFreqTest_freqs)
-    
     for j = countVec
         tempSize_samples = randn(testCountNum,1)*influenzaSize_std + influenzaSize_mean;
 
@@ -291,57 +317,154 @@ for i = 1:length(simFreqTest_freqs)
 
         activeDistDist = hist(tempSize_samples(samplesIntact == 1),influenzaSize);
 
-        subplot(2,10,i); hold on
-        plot(influenzaSize*10^9, activeDistDist+inactiveDist, 'r')
+        % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
+            %%% However, should know proper ratio, which may require fitting sides of active distribution
+            zeroRatioInds = find(influenzaSize_dist/initialCountNum*100 < stepPercent);
 
-        plot(influenzaSize*10^9, activeDistDist, 'k')
+            zeroFractionInds = find((activeDistDist+inactiveDist)/testCountNum*100 < stepPercent);
+
+            inactRatioBySize(i,j,:) = (1 - (activeDistDist/testCountNum)./(influenzaSize_dist/initialCountNum))*100;
+
+            inactRatioBySize(i,j,zeroRatioInds) = 0;
+
+            inactFractionBySize(i,j,:) = (1 - (activeDistDist./(activeDistDist+inactiveDist)))*100;
+
+            inactFractionBySize(i,j,zeroFractionInds) = 0;
+
+            activeBySize(i,j,:) = activeDistDist/testCountNum*100;
+
+            totalInact(i,j) = (1-sum(activeDistDist)/testCountNum)*100;
+
+            % get inds and ranges on inactivation spectrum
+            % find max
+            referenceRange = find(inactRatioBySize(i,j,:) == max(inactRatioBySize(i,j,:)));
+            
+            [maxInact, tempInd] = max(inactRatioBySize(i,j,referenceRange));
+            
+            maxInactInd(i,j) = referenceRange(tempInd);
+            
+            tempInactInds = referenceRange(inactRatioBySize(i,j,referenceRange) == maxInact);
+            
+            maxInactBounds(i,j,:) = influenzaSize(tempInactInds([1 end]));    
+            
+            
+            
+            % plotting spectra - counted of inactivated
+            subplot(3,5,5+1); hold on
+
+            plot(influenzaSize*10^9, activeDistDist/testCountNum*100, 'color', freq_freqCols(i,:))
+
+            % inactivation spectrum
+            subplot(3,5,2*5+j); hold on
+
+            plot(influenzaSize*10^9, permute(inactRatioBySize(i,j,:), [4 3 2 1]), 'color', freq_freqCols(i,:));
+            ylim([-50 100])
     end
 end
 
-figure;
-subplot(1,3,1); hold on
+subplot(3,5,1); hold on
 plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
-plot(simFreqTest_FreqRef(:), simFreqTest_inact(:), 'rd', 'markersize', 4)
+for i = 1:length(simFreqTest_freqs)
+    toPlot = setxor(countVec, 1:nReps);
+    plot(simFreqTest_FreqRef(i,toPlot), simFreqTest_inact(i,toPlot), ...
+        'o', 'markersize', markerSize, 'color', freq_freqCols(i,:));
+
+    plot(simFreqTest_FreqRef(i,countVec), simFreqTest_inact(i,countVec), ...
+        '*', 'markersize', markerSize, 'color', freq_freqCols(i,:));
+end
 xlim([1 20]); ylim([-10 110])
 
 plot(freqRangeFine, freq_curveInact, 'r-', 'linewidth', 2);
 plot(freqRangeFine, freq_curveConfidence, 'r--', 'linewidth', 2);
-% plot(freqRangeFine, freq_curveObserved, 'r:', 'linewidth', 2)
 
-% plot(simFreqTest_FreqRef(:,1), simFreqTest_inactRef(:,1), 'm-')
+plot(simFreqTest_FreqRef(:,1), simFreqTest_inactRef(:,1), 'm-')
 
-% Show resonance distribution
-plot(influenzSize_resonances, influenzaSize_dist/sum(influenzaSize_dist)*50, '-b', 'linewidth', 2)
-
-% show image
-% Place freq inactivation in map
-interpInactFreq = interp1(simFreqTest_freqs, mean(simFreqTest_inact,2),...
-    freqRange, 'linear', 0);
-
-interpInactFreq(interpInactFreq < 2) = 2;
-
-[~, powerInd] = min(abs(powerRange - simFreqTest_power));
-inactImage(:, powerInd) = interpInactFreq/100;
-
-freqRef = zeros(length(simFreqTest_freqs),1);
+% inact from counted intact summed
+subplot(3,5,4); hold on
 for i = 1:length(simFreqTest_freqs)
-   [~, freqRef(i)] = min(abs(freqRange - simFreqTest_freqs(i)));
+    plot(totalInact(i,countVec),  simFreqTest_inact(i,countVec), 'o', 'markersize', markerSize, 'color', freq_freqCols(i,:))
 end
 
-subplot(1,3,2); hold on
-imshow(inactImage');
+line([0 100], [0 100])
+ylim([0 100]); xlim([0 100]); 
 
-plot(freqRef, powerInd, 'rd', 'markersize', 8)
+% Inact from counted both across range
+subplot(3,5,2); hold on
 
-% Set up colors
-cols = gray(101);
-cols(1,:) = [0.2, 0, 0];
-colormap(cols)
+for i = 1:length(simFreqTest_freqs)
+    plot(simFreqTest_FreqRef(i,countVec), inactFractionBySize(i,countVec, maxInactInd(i,countVec)),...
+        'x', 'markersize', markerSize, 'color', freq_freqCols(i,:))
+end
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
+xlim([1 20])
 
-plot(1:length(freqRange), safeRef(:,1), 'b', 'linewidth', 2)
-plot(1:length(freqRange), safeRef(:,2), 'g', 'linewidth', 2)
-plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
-plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
+% Inact from counted intact across range
+subplot(3,5,3); hold on
+for i = 1:length(simFreqTest_freqs)
+        plot(simFreqTest_FreqRef(i,countVec), inactRatioBySize(i,countVec,maxInactInd(i,countVec)),...
+            'x', 'markersize', markerSize, 'color', freq_freqCols(i,:))
+end
+plot(dataInactFreq2016(:,1), dataInactFreq2016(:,2), '-', 'color', [0.5 0.5 0.5], 'linewidth', 2)
+xlim([1 20])
+
+% Plot inactivation width
+
+%%% Could use thickness or color to indicate number inactivated
+subplot(3,5,5); hold on
+for i = 1:length(simFreqTest_freqs)
+    for j = countVec
+        if maxInactBounds(i,j,1) ~= maxInactBounds(i,j,2)
+            line(simFreqTest_FreqRef(i,j)*[1 1], permute(maxInactBounds(i,j,:), [3 2 1])*10^9,...
+                'color', freq_freqCols(i,:), 'linewidth', 2)
+        else
+            if inactRatioBySize(i,j,maxInactInd(i,j)) == 100
+                plot(simFreqTest_FreqRef(i,j), maxInactBounds(i,j,1)*10^9,...
+                    '.', 'markersize', 8, 'color', freq_freqCols(i,:))
+            elseif inactRatioBySize(i,j,maxInactInd(i,j)) > 25
+                plot(simFreqTest_FreqRef(i,j), maxInactBounds(i,j,1)*10^9,...
+                    'o', 'markersize', 4, 'color', freq_freqCols(i,:))
+            end
+        end
+    end
+end
+ylim([80 120])
+xlim([1 20])
+
+%%% Set sensitivity and plot
+
+sensitivityBulk = 
+sensitivityIndividual =
+sensitivityBulk_plaque = 
+
+%%% skip image
+% Place freq inactivation in map
+% interpInactFreq = interp1(simFreqTest_freqs, mean(simFreqTest_inact,2),...
+%     freqRange, 'linear', 0);
+% 
+% interpInactFreq(interpInactFreq < 2) = 2;
+% 
+% [~, powerInd] = min(abs(powerRange - simFreqTest_power));
+% inactImage(:, powerInd) = interpInactFreq/100;
+% 
+% freqRef = zeros(length(simFreqTest_freqs),1);
+% for i = 1:length(simFreqTest_freqs)
+%    [~, freqRef(i)] = min(abs(freqRange - simFreqTest_freqs(i)));
+% end
+% 
+% subplot(1,3,2); hold on
+% imshow(inactImage');
+% 
+% plot(freqRef, powerInd, 'rd', 'markersize', 8)
+% 
+% % Set up colors
+% cols = gray(101);
+% cols(1,:) = [0.2, 0, 0];
+% colormap(cols)
+% 
+% plot(1:length(freqRange), safeRef(:,1), 'b', 'linewidth', 2)
+% plot(1:length(freqRange), safeRef(:,2), 'g', 'linewidth', 2)
+% plot(1:length(freqRange), safeRef(:,3), 'b--', 'linewidth', 2)
+% plot(1:length(freqRange), safeRef(:,4), 'g--', 'linewidth', 2)
 
 %% Phase 1.2 - power
 
@@ -527,7 +650,6 @@ for i = 1
             totalInact(i,j,k) = (1-sum(activeDistDist)/testCountNum)*100;
 
             % get inds and ranges on inactivation spectrum
-            
             % find max
             if length(simPowerTest_powers) == j
                 referenceRange = find(inactRatioBySize(i,j,k,:) == max(inactRatioBySize(i,j,k,:)));
@@ -547,6 +669,8 @@ for i = 1
             inactInds{i,j} = union(tempInactInds, inactInds{i,j});
             
             maxInactBounds(i,j,k,:) = influenzaSize(tempInactInds([1 end]));    
+            
+            
             
             % plotting spectra - counted of inactivated
             subplot(3,length(simPowerTest_powers),length(simPowerTest_powers)+j); hold on
@@ -611,7 +735,7 @@ for i = 1
                     if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100
                         plot(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
                             'r.', 'markersize', 8)
-                    else
+                    elseif inactRatioBySize(i,j,k,maxInactInd(i,j,k)) > 25
                         plot(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9,...
                             'ro', 'markersize', 4)
                     end
