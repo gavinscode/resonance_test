@@ -1,17 +1,49 @@
-function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, weightsIndexes)
+function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, weightsIndexes,...
+        minimaType)
 
     freqSizeStrucutre(weightsIndexes) = weightsVector;
 
     % change to linear power for convience
-    freqSizeStrucutre = 10.^(freqSizeStrucutre);
+    if any(isinf(freqSizeStrucutre(:)))
+        freqSizeStrucutre = 10.^(freqSizeStrucutre);
+    end
     
-    % c is inequality constaint, solves for c(x) < 0
+    freqSizeStrucutre = ceil(freqSizeStrucutre);
+    
+    c = [];
+    
+    % c is inequality constraint, solves for c(x) < 0
     % calculate c for each size
     
-    c = []; zeros(size(freqSizeStrucutre,2),1);
+    %%% Set log10/integer on equality constraint
+    % probably works best with integer points...
     
-%     for i = 1:size(freqSizeStrucutre,2)
+%     uniThresholds = unique(freqSizeStrucutre(freqSizeStrucutre(:) > 0));
+%     
+%     c = zeros(size(freqSizeStrucutre,2),length(uniThresholds));
+%     
+%     for i = fliplr(1:length(uniThresholds))
+%         pointsBelow = zeros(size(freqSizeStrucutre));
 %         
+%         pointsBelow(freqSizeStrucutre <= uniThresholds(i) & freqSizeStrucutre > 0) = 1;
+%         
+%         indsBelow = find(pointsBelow);
+%         
+%         [xBelow, yBelow] = ind2sub(size(freqSizeStrucutre),  indsBelow);
+%         
+%         for j = 1:size(freqSizeStrucutre,2)
+%             yInds = find(yBelow == j);
+%             
+%             if ~isempty(yInds)
+%                 otherInds = find(yBelow ~= j);
+% 
+%                 for k = 1:length(yInds)
+%                     c(j,i) = c(j,i) + length(find(xBelow(yInds(k)) == xBelow(otherInds)));
+%                 end
+%             else
+%                 c(j,i) = NaN;
+%             end
+%         end
 %     end
     
     % ceq is equality constraint, solves for ceq(x) = 0
@@ -20,38 +52,31 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
     
     ceq = zeros(size(freqSizeStrucutre,2),1);
     
+    allMinima = zeros(size(freqSizeStrucutre));
+    
     for i = 1:size(freqSizeStrucutre,2)
         inactLevels = freqSizeStrucutre(:,i);
         
-        inactLevels(inactLevels == 0) = [];
+        inactInds = find(inactLevels > 0);
+        
+        inactLevels = inactLevels(inactInds);
+        
+        %%% Allow option to just count minima, not require points (broad peaks)...
         
         % Check not all equal
         if length(inactLevels) > sum(inactLevels == min(inactLevels))
             % Only gets interior minima, and not edges...
-            minimaPoints = islocalmin(inactLevels, 'FlatSelection', 'all');
-
-%             minimaInds = find(minimaPoints);
-%             
-%             % Get any extra minima points
-%             if ~isempty(minimaInds)
-%                 for j = minimaInds
-% 
-%                     ind = j+1;
-% 
-%                     while inactLevels(ind) == inactLevels(j)
-% 
-%                         minimaPoints(ind) = 1;
-% 
-%                         ind = ind + 1;
-%                     end
-% 
-%                 end
-%             end
+            % Calculate both flat and first, flat always needed to relate between sizes
+            minimaPointsAll = islocalmin(inactLevels, 'FlatSelection', 'all');
+            
+            minimaPointsFirst = islocalmin(inactLevels, 'FlatSelection', 'first');
             
             % Get first edge
-            for j = 1:(length(minimaPoints)-1)
+            for j = 1:(length(minimaPointsAll)-1)
                 if inactLevels(j) < inactLevels(j+1)
-                    minimaPoints(1:j) = 1;
+                    minimaPointsAll(1:j) = 1;
+                    
+                    minimaPointsFirst(1) = 1;
                     break;
                 elseif inactLevels(j) > inactLevels(j+1)
                    break; 
@@ -61,9 +86,11 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
             end
 
             % Get last edge
-            for j = fliplr(2:(length(minimaPoints)))
+            for j = fliplr(2:(length(minimaPointsAll)))
                 if inactLevels(j-1) > inactLevels(j)
-                    minimaPoints(j:end) = 1;
+                    minimaPointsAll(j:end) = 1;
+                    
+                    minimaPointsFirst(j) = 1;
                     break;
                 elseif inactLevels(j-1) < inactLevels(j)
                    break; 
@@ -76,11 +103,61 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
     %         minimaPoints = find(inactLevels == min(inactLevels));
     
         else
-            minimaPoints = ones(length(inactLevels),1);
+            minimaPointsAll = ones(length(inactLevels),1);
+            
+            minimaPointsFirst = zeros(length(inactLevels),1);
+            minimaPointsFirst(1) = 1;
+            
         end
         
+        allMinima(inactInds,i) = minimaPointsAll;
+        
         % Subtract 1 so goal is 1 point
-        ceq(i) = sum(minimaPoints) - 1;
+        % Type 1 is flat, type 0 is first
+        if minimaType
+            ceq(i) = sum(minimaPointsAll) - 1;
+        else
+            ceq(i) = sum(minimaPointsFirst) - 1;
+        end
     end
+    
+    % 2nd equality constraint - minima should be higher freq than former
+    % and lower freq the latter
+    
+    ceq2 = zeros(size(freqSizeStrucutre,2),1);
+    
+    % This assumes that inactivation is rising from left to right
+    
+    for i = 1:size(freqSizeStrucutre,2)
+        
+        minimaInds = find(allMinima(:,i));
+        
+        if i > 1
+           for j = 1:i-1
+               formerInds = find(allMinima(:,j));
+
+               indDif = formerInds(1)- minimaInds(end);
+               % Former inds should be lower, so diff greater than zero
+               if indDif < 0
+                    ceq2(i) = ceq2(i)+abs(indDif);
+               end
+           end
+        end
+        
+        if i < size(freqSizeStrucutre,2)
+            for j = i+1:size(freqSizeStrucutre,2)
+                latterInds = find(allMinima(:,j));
+
+                indDif = minimaInds(1)- latterInds(end);
+                %Latter inds should be higher, so diff greater than zero
+                if indDif < 0
+                    ceq2(i) = ceq2(i) + abs(indDif);
+                end
+            end
+        end
+        
+    end
+    
+    ceq = [ceq' ceq2']';
 end
 

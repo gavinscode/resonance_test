@@ -1021,6 +1021,8 @@ if removeUnused
         end
     end
 
+    powersRemoved = sum(toRemove);
+    
     predictionPowers(toRemove) = [];
     predictedInactivation(:,toRemove) = [];
 end
@@ -1040,7 +1042,8 @@ for i = 1:length(simFreqTest_freqs)
         
         [inds] = sub2ind(size(thresholdArray), freqInd*ones(length(sizeInds),1), sizeInds);
         
-        thresholdArray(inds) = simFreqTest_power;
+%         thresholdArray(inds) = simFreqTest_power;
+        thresholdArray(inds) = length(simPowerTest_powers)-powersRemoved;
     end
 end
 
@@ -1056,7 +1059,8 @@ for i = 1:length(simPowerTest_freqs)
 
             [inds] = sub2ind(size(thresholdArray), freqInd*ones(length(sizeInds),1), sizeInds);
 
-            thresholdArray(inds) = simPowerTest_powers(j);
+%             thresholdArray(inds) = simPowerTest_powers(j);
+            thresholdArray(inds) = j-powersRemoved;
         end
     end
 end
@@ -1078,45 +1082,58 @@ if removeUnused
     thresholdArray(:,toRemove) = [];
 end
 
-%%% 512 on 8.5 GHz line is already solved... can add.
-pointsToSolve = find(thresholdArray == max(simPowerTest_powers));
+% Lock in lines that are already measured
+tempArray = thresholdArray;
+for i = 1:length(simPowerTest_freqs)
+    freqInd = find(simPowerTest_freqs(i) == predictionFreqs);
+    tempArray(freqInd,:) = 0;
+end    
+    
+pointsToSolve = find(tempArray == length(simPowerTest_powers)-powersRemoved);
 
-fun = @(x)inactivationError(x, log10(thresholdArray), predictionSizes_dist, ... 
-    predictedInactivation, pointsToSolve, log10(predictionPowers));
+% fun = @(x)inactivationError(x, log10(thresholdArray), predictionSizes_dist, ... 
+%     predictedInactivation, pointsToSolve, log10(predictionPowers)); 
 
-con = @(x)inactivationConstraints(x, log10(thresholdArray), pointsToSolve);
+fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ... 
+    predictedInactivation, pointsToSolve, 1:length(predictionPowers));
 
-startVals = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1));
-ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1));
-lbd = log10(min(simPowerTest_powers)*ones(length(pointsToSolve),1));
+allowBroad = 1;
 
-%%% Without constraint, works with pattern search but not fmincon
+con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, ~allowBroad); %log10
 
-%%% Solver that looks at discrete points? - Would fit with tested power levels...
-    % Could try intlinprog
+% startVals = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
+% ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
+% lbd = log10(min(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
+
+startVals = (length(predictionPowers)*ones(length(pointsToSolve),1)); 
+ubd = (length(predictionPowers)*ones(length(pointsToSolve),1)); 
+lbd = (ones(length(pointsToSolve),1)); 
+
+% Seems to work quite well with integer points on pattern search
+    % Recommend is to us ga, but doesn't allow equality constraints
+    
+%%% Set up flag to switch between integer or log values     
     
 % can set to use parallel
 patSearOpts = optimoptions('patternsearch','Display','iter', 'FunctionTolerance', 1e-6, ...
-            'MaxFunctionEvaluations', 10000, 'MaxIterations', 1000, 'ScaleMesh', 'off', 'TolMesh', 0.9);
+            'MaxFunctionEvaluations', 10^6, 'MaxIterations', 10^3, 'ScaleMesh', 'off', 'TolMesh', 0.9);
     
 vals = patternsearch(fun, startVals, [], [], [], [], lbd, ubd, con, patSearOpts);
 
-% minConOpts = optimoptions('fmincon','Display','iter', 'FunctionTolerance', 1e-6, ...
-%             'MaxFunctionEvaluations', 1000, 'MaxIterations', 100);
-%         
-% vals = fmincon(fun, startVals, [], [], [], [], lbd, ubd, [], minConOpts);
+% Never seems to work with fmincon
 
 [a, b, c] = fun(vals);
 
 a
 
-10.^b;
-
-% c
-
 [c, ceq] = con(vals);
 
-[(1:length(ceq))' 10.^b' ceq]'
+% [(1:length(ceq))' 10.^b' ceq]'
+
+b(b > 0) = predictionPowers(ceil(b(b > 0)));
+
+[(1:size(b,2))' b' ceq(1:size(b,2)) ceq(size(b,2)+1:end)]'
+% [(1:length(ceq))' thresholdArray' ceq]'
 
 %%% Want to get confidence intervals for each fit
 

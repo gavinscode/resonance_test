@@ -8,7 +8,7 @@ function [sse, freqSizeStrucutre, inactivationDiff] = inactivationError(weightsV
     for i = 1:size(result,1)
         
         for j = 1:size(result,2)
-            inds = find(freqSizeStrucutre(i,:) < powerReference(j) & freqSizeStrucutre(i,:) > 0);
+            inds = find(freqSizeStrucutre(i,:) <= powerReference(j) & freqSizeStrucutre(i,:) > 0);
             
             result(i,j) = sum(sizeWeighting(inds));
         end
