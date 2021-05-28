@@ -1081,19 +1081,45 @@ end
 %%% 512 on 8.5 GHz line is already solved... can add.
 pointsToSolve = find(thresholdArray == max(simPowerTest_powers));
 
-fun = @(x)inactivationError(x, thresholdArray, predictionSizes_dist, ... 
-    predictedInactivation, pointsToSolve, predictionPowers);
+fun = @(x)inactivationError(x, log10(thresholdArray), predictionSizes_dist, ... 
+    predictedInactivation, pointsToSolve, log10(predictionPowers));
 
-fun@(x)inactivationConstraints(x);
+con = @(x)inactivationConstraints(x, log10(thresholdArray), pointsToSolve);
 
-startVals = max(simPowerTest_powers)*ones(length(pointsToSolve),1);
-ubd = max(simPowerTest_powers)*ones(length(pointsToSolve),1);
-lbd = min(simPowerTest_powers)*ones(length(pointsToSolve),1);
+startVals = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1));
+ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1));
+lbd = log10(min(simPowerTest_powers)*ones(length(pointsToSolve),1));
 
-%%% Without constratin, works with pattern search but not fmincon
-patternsearch(fun, startVals, [], [], [], [], lbd, ubd);
+%%% Without constraint, works with pattern search but not fmincon
 
-fmincon(fun, startVals, [], [], [], [], lbd, ubd);
+%%% Solver that looks at discrete points? - Would fit with tested power levels...
+    % Could try intlinprog
+    
+% can set to use parallel
+patSearOpts = optimoptions('patternsearch','Display','iter', 'FunctionTolerance', 1e-6, ...
+            'MaxFunctionEvaluations', 10000, 'MaxIterations', 1000, 'ScaleMesh', 'off', 'TolMesh', 0.9);
+    
+vals = patternsearch(fun, startVals, [], [], [], [], lbd, ubd, con, patSearOpts);
+
+% minConOpts = optimoptions('fmincon','Display','iter', 'FunctionTolerance', 1e-6, ...
+%             'MaxFunctionEvaluations', 1000, 'MaxIterations', 100);
+%         
+% vals = fmincon(fun, startVals, [], [], [], [], lbd, ubd, [], minConOpts);
+
+[a, b, c] = fun(vals);
+
+a
+
+10.^b;
+
+% c
+
+[c, ceq] = con(vals);
+
+[(1:length(ceq))' 10.^b' ceq]'
+
+%%% Want to get confidence intervals for each fit
+
 %% Phase 1.3 scan across freq
 
 simFineTest_inact = zeros(length(simFineTest_freqs), length(simFineTest_powers), nReps);
