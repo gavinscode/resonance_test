@@ -1068,8 +1068,11 @@ end
 %%% relation between predictInactThresh, distPercent, stepPercent determine what ends up unused. 
     % If perfect match, shouldn't be any unused. Unused end up on small sizes and high, low freqs.
 
+sizesToUse = 1:length(influenzaSize);    
+
+toRemove = zeros(length(predictionSizes),1,'logical');
+
 if removeUnused
-    toRemove = zeros(length(predictionSizes),1,'logical');
 
     for i = 1:length(predictionSizes)
         if all( thresholdArray(:,i) == 0)
@@ -1077,10 +1080,15 @@ if removeUnused
         end
     end
 
+    sizesToUse(toRemove) = [];
     predictionSizes(toRemove) = [];
     predictionSizes_dist(toRemove) = [];
     thresholdArray(:,toRemove) = [];
 end
+
+predictionCountNum = sum(predictionSizes_dist/100)*initialCountNum;
+
+sizesRemoved = find(toRemove);
 
 % Lock in lines that are already measured
 tempArray = thresholdArray;
@@ -1090,6 +1098,118 @@ for i = 1:length(simPowerTest_freqs)
 end    
     
 pointsToSolve = find(tempArray == length(simPowerTest_powers)-powersRemoved);
+
+% Get reference inactivation for unused
+
+inactRatioBySize_reference = zeros(length(predictionFreqs), length(predictionPowers), length(predictionSizes));
+
+totalInact = zeros(length(predictionFreqs), length(predictionPowers));
+
+lostInact = zeros(length(predictionFreqs), length(predictionPowers));
+keptInact = zeros(length(predictionFreqs), length(predictionPowers));
+
+for i = 1:length(predictionFreqs)
+    for j = fliplr(1:length(predictionPowers))
+        tempSize_samples = influenzaSize_samples;
+
+        tempSize_samples = sort(tempSize_samples, 'descend');
+
+        tempSize_freqs = 1./(tempSize_samples/2)*resSlope;
+
+        samplesIntact = ones(testCountNum, 1);
+
+        % Start with reference before we figure out noise... 
+        numToInact = round(testCountNum*predictedInactivation(i,j)/100);
+
+        if numToInact > 1 
+            % Find nearest in sample
+            [~, minInd] = min(abs(tempSize_freqs-predictionFreqs(i)));
+
+            numInactivated = 1;
+
+            samplesIntact(minInd) = 0;
+
+            while numInactivated < numToInact
+                % Find nearest
+                if minInd + 1 > testCountNum
+                    minInd = minInd - 1;
+                elseif minInd - 1 < 1
+                    minInd = minInd + 1;    
+                else
+                    indRef = find(samplesIntact);
+
+                    [~, tempInd] = min(abs(tempSize_freqs(samplesIntact == 1)-predictionFreqs(i)));
+
+                    minInd = indRef(tempInd);
+                end
+
+                samplesIntact(minInd) = 0;
+
+                numInactivated = numInactivated + 1;
+            end
+        end
+
+        % Get hist of both
+        activeDistDist = hist(tempSize_samples(samplesIntact == 1), influenzaSize);
+
+        % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
+        %%% However, should know proper ratio, which may require fitting sides of active distribution
+        zeroRatioInds = find(influenzaSize_dist(sizesToUse)/predictionCountNum*100 < stepPercent);
+
+        inactRatioBySize_reference(i,j,:) = (1 - (activeDistDist(sizesToUse)/predictionCountNum)./...
+            (influenzaSize_dist(sizesToUse)/predictionCountNum))*100;
+
+        inactRatioBySize_reference(i,j,zeroRatioInds) = 0;
+        
+        % for testing
+        
+        totalInact(i,j) = (1-sum(activeDistDist)/initialCountNum)*100;
+        
+        lostInact(i,j) = (sum(activeDistDist([sizesRemoved sizesToUse(zeroRatioInds)]))/initialCountNum)*100;
+        
+        keptInact(i,j) = (1 - sum(activeDistDist(sizesToUse))/predictionCountNum)*100;
+    end
+end
+
+% Collapse to threshold map
+
+thresholdArray_reference = zeros(length(predictionFreqs), length(predictionSizes));
+
+for i = 1:length(predictionFreqs)
+    for j = fliplr(1:length(predictionPowers))
+
+        sizeInds = find(inactRatioBySize_reference(i,j,:) > inactNoiseThresh);
+
+        [inds] = sub2ind(size(thresholdArray_reference), i*ones(length(sizeInds),1), sizeInds);
+
+        thresholdArray_reference(inds) = j;
+    end
+end
+
+keptInact - totalInact
+
+figure; 
+subplot(2,3,1); imshow(predictedInactivation/100)
+
+subplot(2,3,2); imshow(totalInact/100)
+
+subplot(2,3,3); imshow(abs(predictedInactivation-totalInact)*10)
+
+testInactivation = size(predictedInactivation);
+
+for i = 1:length(predictionFreqs)
+    for j = 1:length(predictionPowers)
+
+        testInactivation(i,j) = sum(permute(inactRatioBySize_reference(i,j,:), [3 2 1]).*predictionSizes_dist'/100);
+        
+    end
+end
+        
+subplot(2,3,5); imshow(testInactivation/100)
+
+subplot(2,3,6); imshow(abs(predictedInactivation-testInactivation)/10)
+lostInact
+%%% Solver
 
 % fun = @(x)inactivationError(x, log10(thresholdArray), predictionSizes_dist, ... 
 %     predictedInactivation, pointsToSolve, log10(predictionPowers)); 
@@ -1134,6 +1254,16 @@ b(b > 0) = predictionPowers(ceil(b(b > 0)));
 
 [(1:size(b,2))' b' ceq(1:size(b,2)) ceq(size(b,2)+1:end)]'
 % [(1:length(ceq))' thresholdArray' ceq]'
+
+thresholdTemp = thresholdArray;
+thresholdTemp(pointsToSolve) = vals;
+
+figure; 
+subplot(1,3,1); imshow(thresholdArray_reference/length(predictionPowers))
+
+subplot(1,3,2); imshow(thresholdTemp/length(predictionPowers))
+
+subplot(1,3,3); imshow(abs(thresholdArray_reference-thresholdTemp)/length(predictionPowers))
 
 %%% Want to get confidence intervals for each fit
 
