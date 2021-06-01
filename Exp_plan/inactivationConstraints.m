@@ -113,11 +113,11 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
         allMinima(inactInds,i) = minimaPointsAll;
         
         % Subtract 1 so goal is 1 point
-        % Type 1 is flat, type 0 is first
+        % Type 0 is all (forces point), type 1 is first (allows broad)
         if minimaType
-            ceq(i) = sum(minimaPointsAll) - 1;
-        else
             ceq(i) = sum(minimaPointsFirst) - 1;
+        else
+            ceq(i) = sum(minimaPointsAll) - 1;
         end
     end
     

@@ -20,9 +20,21 @@ stepPercent = 2;
 
 [influenzaSize_dist, influenzaSize] = hist(influenzaSize_samples,(70:distStep:130)/10^9);
 
-% Trim
+% Trim distribution and samples
+tempInd = find(influenzaSize_dist > sum(influenzaSize_dist)*distPercent/100);
+
+%%% Note that bin centers are specified
+influenzaSize_samples(influenzaSize_samples < mean(influenzaSize(tempInd(1)-1:tempInd(1))) | ...
+    influenzaSize_samples > mean(influenzaSize(tempInd(end):tempInd(end)+1))) = [];
+
 influenzaSize(influenzaSize_dist < sum(influenzaSize_dist)*distPercent/100) = [];
 influenzaSize_dist(influenzaSize_dist < sum(influenzaSize_dist)*distPercent/100) = [];
+
+initialCountNum = sum(influenzaSize_dist);
+
+if length(influenzaSize_samples) ~= initialCountNum
+   error('Problem triming') 
+end
 
 [~, maxSizeInd] = max(influenzaSize_dist);
 
@@ -1072,6 +1084,8 @@ sizesToUse = 1:length(influenzaSize);
 
 toRemove = zeros(length(predictionSizes),1,'logical');
 
+predictionSizes_distTemp = predictionSizes_dist;
+
 if removeUnused
 
     for i = 1:length(predictionSizes)
@@ -1086,9 +1100,20 @@ if removeUnused
     thresholdArray(:,toRemove) = [];
 end
 
-predictionCountNum = sum(predictionSizes_dist/100)*initialCountNum;
-
 sizesRemoved = find(toRemove);
+
+predictionCountNum = sum(influenzaSize_dist(sizesToUse));
+
+ignoredCountNum = sum(influenzaSize_dist(toRemove));
+
+if any(influenzaSize_dist(sizesToUse)/predictionCountNum*100 < stepPercent)
+    
+    warning('small sizes wont be removed')
+    
+end
+
+%%% Required?
+% predictionSizes_dist = predictionSizes_dist/sum(predictionSizes_dist)*100;
 
 % Lock in lines that are already measured
 tempArray = thresholdArray;
@@ -1154,20 +1179,16 @@ for i = 1:length(predictionFreqs)
 
         % Strictly speaking, to match equivelent of usual Ct/C0 doesn't require distribution of inactivated
         %%% However, should know proper ratio, which may require fitting sides of active distribution
-        zeroRatioInds = find(influenzaSize_dist(sizesToUse)/predictionCountNum*100 < stepPercent);
 
         inactRatioBySize_reference(i,j,:) = (1 - (activeDistDist(sizesToUse)/predictionCountNum)./...
             (influenzaSize_dist(sizesToUse)/predictionCountNum))*100;
-
-        inactRatioBySize_reference(i,j,zeroRatioInds) = 0;
         
         % for testing
+        totalInact(i,j) = (1 - sum(activeDistDist)/initialCountNum)*100;
         
-        totalInact(i,j) = (1-sum(activeDistDist)/initialCountNum)*100;
+        lostInact(i,j) = (1 - sum(activeDistDist(sizesRemoved))/ignoredCountNum)*100;
         
-        lostInact(i,j) = (sum(activeDistDist([sizesRemoved sizesToUse(zeroRatioInds)]))/initialCountNum)*100;
-        
-        keptInact(i,j) = (1 - sum(activeDistDist(sizesToUse))/predictionCountNum)*100;
+        keptInact(i,j) = (1 - sum(activeDistDist(sizesToUse))/predictionCountNum)*100; 
     end
 end
 
@@ -1186,29 +1207,46 @@ for i = 1:length(predictionFreqs)
     end
 end
 
-keptInact - totalInact
-
+% testing
 figure; 
-subplot(2,3,1); imshow(predictedInactivation/100)
+subplot(4,3,1); imshow(predictedInactivation/100)
 
-subplot(2,3,2); imshow(totalInact/100)
+subplot(4,3,2); imshow(totalInact/100)
 
-subplot(2,3,3); imshow(abs(predictedInactivation-totalInact)*10)
+subplot(4,3,3); imshow(abs(predictedInactivation-totalInact))
+        
+
+testInactivation = lostInact*ignoredCountNum/initialCountNum+keptInact*predictionCountNum/initialCountNum;
+
+subplot(4,3,4); imshow(abs(totalInact-testInactivation))
+
+subplot(4,3,5); imshow(testInactivation/100)
+
+subplot(4,3,6); imshow(abs(predictedInactivation-testInactivation))
+
+
+subplot(4,3,8); imshow(keptInact/100)
+
+subplot(4,3,9); imshow(abs(predictedInactivation-keptInact)/10)
+
 
 testInactivation = size(predictedInactivation);
 
 for i = 1:length(predictionFreqs)
     for j = 1:length(predictionPowers)
 
-        testInactivation(i,j) = sum(permute(inactRatioBySize_reference(i,j,:), [3 2 1]).*predictionSizes_dist'/100);
+        testInactivation(i,j) = sum(permute(inactRatioBySize_reference(i,j,:), [2 3 1])/100 .* ...
+            influenzaSize_dist(sizesToUse)/predictionCountNum*100);
         
     end
 end
-        
-subplot(2,3,5); imshow(testInactivation/100)
 
-subplot(2,3,6); imshow(abs(predictedInactivation-testInactivation)/10)
-lostInact
+subplot(4,3,10); imshow(abs(testInactivation - keptInact)/10)
+
+subplot(4,3,11); imshow(testInactivation/100)
+
+subplot(4,3,12); imshow(abs(predictedInactivation-testInactivation)/10)
+
 %%% Solver
 
 % fun = @(x)inactivationError(x, log10(thresholdArray), predictionSizes_dist, ... 
@@ -1218,6 +1256,8 @@ fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ...
     predictedInactivation, pointsToSolve, 1:length(predictionPowers));
 
 allowBroad = 1;
+
+fun(thresholdArray_reference(pointsToSolve))
 
 con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, ~allowBroad); %log10
 
