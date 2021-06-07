@@ -1078,6 +1078,15 @@ totalInact = zeros(length(predictionFreqs), length(predictionPowers));
 lostInact = zeros(length(predictionFreqs), length(predictionPowers));
 keptInact = zeros(length(predictionFreqs), length(predictionPowers));
 
+%%% Put now so can test reference, but for normal needs to be done after...
+if ~exist('predictionCountNum','var')
+    ignoredCountNum = 1;
+    
+    predictionCountNum = initialCountNum;
+    
+    sizesRemoved = [];
+end
+
 for i = 1:length(predictionFreqs)
     for j = fliplr(1:length(predictionPowers))
         tempSize_samples = influenzaSize_samples;
@@ -1215,7 +1224,7 @@ for i = 1:length(simPowerTest_freqs)
     tempArray(freqInd,:) = 0;
 end    
     
-pointsToSolve = find(tempArray == length(simPowerTest_powers)-powersRemoved);
+pointsToSolve = find(tempArray > 0);
 
 % testing - dif predicted to total - should be similar
 figure; 
@@ -1311,7 +1320,11 @@ con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, allowBroad
 % ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
 % lbd = log10(min(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
 
-startVals = (length(predictionPowers)*ones(length(pointsToSolve),1)); 
+% startVals = (length(predictionPowers)*ones(length(pointsToSolve),1)); % all max
+% startVals = ones(length(pointsToSolve),1); % all min
+% startVals = thresholdArray(pointsToSolve); % original
+startVals = round(rand(length(pointsToSolve),1)*4)+1; % original
+
 ubd = (length(predictionPowers)*ones(length(pointsToSolve),1)); 
 lbd = (ones(length(pointsToSolve),1)); 
 
@@ -1322,13 +1335,14 @@ lbd = (ones(length(pointsToSolve),1));
     
 % can set to use parallel
 patSearOpts = optimoptions('patternsearch','Display','iter', 'FunctionTolerance', 1e-6, ...
-            'MaxFunctionEvaluations', 10^6, 'MaxIterations', 10^3, 'ScaleMesh', 'off', 'TolMesh', 0.9);
+            'MaxFunctionEvaluations', 10^6, 'MaxIterations', 10^3, 'ScaleMesh', 'off', ... 
+            'TolMesh', 0.9, 'UseParallel', true);
     
 vals = patternsearch(fun, startVals, [], [], [], [], lbd, ubd, con, patSearOpts);
 
 % Never seems to work with fmincon
 
-[a, b, c] = fun(vals);
+[a, b, solInact] = fun(vals);
 
 a
 
@@ -1345,11 +1359,20 @@ thresholdTemp = thresholdArray;
 thresholdTemp(pointsToSolve) = vals;
 
 figure; 
-subplot(1,3,1); imshow(thresholdArray_reference/length(predictionPowers))
 
-subplot(1,3,2); imshow(thresholdTemp/length(predictionPowers))
 
-subplot(1,3,3); imshow(abs(thresholdArray_reference-thresholdTemp)/length(predictionPowers))
+subplot(2,3,1); imshow(thresholdArray_reference/length(predictionPowers))
+
+subplot(2,3,2); imshow(thresholdTemp/length(predictionPowers))
+
+subplot(2,3,3); imshow(abs(thresholdArray_reference-thresholdTemp)/length(predictionPowers))
+
+
+subplot(2,3,4); imshow(predictedInactivation/100)
+
+subplot(2,3,5); imshow(solInact/100)
+
+subplot(2,3,6); imshow(abs(predictedInactivation-solInact)/10)
 
 %%% Want to get confidence intervals for each fit
 
