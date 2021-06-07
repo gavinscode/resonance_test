@@ -132,14 +132,18 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
         
         minimaInds = find(allMinima(:,i));
         
+        %%% Need to check this constratin works well...
+        
         if i > 1
            for j = 1:i-1
                formerInds = find(allMinima(:,j));
 
-               indDif = formerInds(1)- minimaInds(end);
-               % Former inds should be lower, so diff greater than zero
-               if indDif < 0
-                    ceq2(i) = ceq2(i)+abs(indDif);
+               if isempty( intersect(minimaInds, formerInds))
+                   indDif = formerInds(1) - minimaInds;
+                   % Former inds should be lower, so diff greater than zero
+                   if all(indDif < 0)
+                        ceq2(i) = ceq2(i) + sum(indDif < 0);
+                   end
                end
            end
         end
@@ -148,10 +152,12 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
             for j = i+1:size(freqSizeStrucutre,2)
                 latterInds = find(allMinima(:,j));
 
-                indDif = minimaInds(1)- latterInds(end);
-                %Latter inds should be higher, so diff greater than zero
-                if indDif < 0
-                    ceq2(i) = ceq2(i) + abs(indDif);
+                if isempty( intersect(minimaInds, latterInds))
+                    indDif = minimaInds(1) - latterInds;
+                    %Latter inds should be higher, so diff greater than zero
+                    if all(indDif < 0)
+                        ceq2(i) = ceq2(i) + sum(indDif < 0);
+                    end
                 end
             end
         end

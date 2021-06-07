@@ -947,6 +947,8 @@ plot3(sensitivity_PowerRef(x), sensitivity_FreqRef(y), influenzSize_resonances(z
 
 removeUnused = 1;
 
+swapInReference = 1;
+
 predictionFreqs = sort([simFreqTest_freqs simPowerTest_freqs]);
 predictionPowers = simPowerTest_powers;
 
@@ -1010,20 +1012,9 @@ for i = 1:length(predictionFreqs)
     end
 end
 
-% Remove low points
+% Remove low points from power
 if removeUnused
-    predictInactThresh = 2;
-
-    toRemove = zeros(length(predictionFreqs),1, 'logical');
-
-    for i = 1:length(predictionFreqs)
-        if all( predictedInactivation(i,:) < predictInactThresh)
-            toRemove(i) = 1;
-        end
-    end
-
-    predictionFreqs(toRemove) = [];
-    predictedInactivation(toRemove,:) = [];
+    predictInactThresh = 0.1; %2;
 
     toRemove = zeros(length(predictionPowers),1,'logical');
 
@@ -1077,54 +1068,8 @@ for i = 1:length(simPowerTest_freqs)
     end
 end
 
-%%% relation between predictInactThresh, distPercent, stepPercent determine what ends up unused. 
-    % If perfect match, shouldn't be any unused. Unused end up on small sizes and high, low freqs.
-
-sizesToUse = 1:length(influenzaSize);    
-
-toRemove = zeros(length(predictionSizes),1,'logical');
-
-predictionSizes_distTemp = predictionSizes_dist;
-
-if removeUnused
-
-    for i = 1:length(predictionSizes)
-        if all( thresholdArray(:,i) == 0)
-            toRemove(i) = 1;
-        end
-    end
-
-    sizesToUse(toRemove) = [];
-    predictionSizes(toRemove) = [];
-    predictionSizes_dist(toRemove) = [];
-    thresholdArray(:,toRemove) = [];
-end
-
-sizesRemoved = find(toRemove);
-
-predictionCountNum = sum(influenzaSize_dist(sizesToUse));
-
-ignoredCountNum = sum(influenzaSize_dist(toRemove));
-
-if any(influenzaSize_dist(sizesToUse)/predictionCountNum*100 < stepPercent)
-    
-    warning('small sizes wont be removed')
-    
-end
-
-%%% Required?
-% predictionSizes_dist = predictionSizes_dist/sum(predictionSizes_dist)*100;
-
-% Lock in lines that are already measured
-tempArray = thresholdArray;
-for i = 1:length(simPowerTest_freqs)
-    freqInd = find(simPowerTest_freqs(i) == predictionFreqs);
-    tempArray(freqInd,:) = 0;
-end    
-    
-pointsToSolve = find(tempArray == length(simPowerTest_powers)-powersRemoved);
-
 % Get reference inactivation for unused
+sizesToUse = 1:length(influenzaSize);    
 
 inactRatioBySize_reference = zeros(length(predictionFreqs), length(predictionPowers), length(predictionSizes));
 
@@ -1186,11 +1131,14 @@ for i = 1:length(predictionFreqs)
         % for testing
         totalInact(i,j) = (1 - sum(activeDistDist)/initialCountNum)*100;
         
+        %%% Need to store data to calculate later... 
         lostInact(i,j) = (1 - sum(activeDistDist(sizesRemoved))/ignoredCountNum)*100;
         
-        keptInact(i,j) = (1 - sum(activeDistDist(sizesToUse))/predictionCountNum)*100; 
+        keptInact(i,j) = (1 - sum(activeDistDist(sizesToUse))/predictionCountNum)*100;  
     end
 end
+
+lostInact(isnan(lostInact)) = 0;
 
 % Collapse to threshold map
 
@@ -1199,7 +1147,7 @@ thresholdArray_reference = zeros(length(predictionFreqs), length(predictionSizes
 for i = 1:length(predictionFreqs)
     for j = fliplr(1:length(predictionPowers))
 
-        sizeInds = find(inactRatioBySize_reference(i,j,:) > inactNoiseThresh);
+        sizeInds = find(inactRatioBySize_reference(i,j,:) > 50); %inactNoiseThresh
 
         [inds] = sub2ind(size(thresholdArray_reference), i*ones(length(sizeInds),1), sizeInds);
 
@@ -1207,45 +1155,145 @@ for i = 1:length(predictionFreqs)
     end
 end
 
-% testing
+if swapInReference
+    thresholdArray = thresholdArray_reference; 
+    
+    predictedInactivation = totalInact; 
+end
+
+% Remove from sizes and freqs
+toRemove = zeros(length(predictionSizes),1,'logical');
+
+predictionSizes_distTemp = predictionSizes_dist;
+
+if removeUnused
+    toRemoveTemp = zeros(length(predictionFreqs),1, 'logical');
+
+    for i = 1:length(predictionFreqs)
+        if all( thresholdArray(i,:) == 0)
+            toRemoveTemp(i) = 1;
+        end
+    end
+
+    predictionFreqs(toRemoveTemp) = [];
+    predictedInactivation(toRemoveTemp,:) = [];
+    thresholdArray(toRemoveTemp,:) = [];
+    
+    thresholdArray_reference(toRemoveTemp,:) = [];
+    inactRatioBySize_reference(toRemoveTemp,:) = [];
+    totalInact(toRemoveTemp,:) = [];
+    lostInact(toRemoveTemp,:) = [];
+    keptInact(toRemoveTemp,:) = [];
+    
+    for i = 1:length(predictionSizes)
+        if all( thresholdArray(:,i) == 0)
+            toRemove(i) = 1;
+        end
+    end
+
+    sizesToUse(toRemove) = [];
+    predictionSizes(toRemove) = [];
+    predictionSizes_dist(toRemove) = [];
+    thresholdArray(:,toRemove) = [];
+    
+    thresholdArray_reference(:,toRemove) = [];
+    inactRatioBySize_reference(:,toRemove) = [];
+end
+
+sizesRemoved = find(toRemove);
+predictionCountNum = sum(influenzaSize_dist(sizesToUse));
+ignoredCountNum = sum(influenzaSize_dist(toRemove));
+
+if any(influenzaSize_dist(sizesToUse)/predictionCountNum*100 < stepPercent)
+    warning('small sizes are present')
+end
+
+% Lock in lines that are already measured
+tempArray = thresholdArray;
+for i = 1:length(simPowerTest_freqs)
+    freqInd = find(simPowerTest_freqs(i) == predictionFreqs);
+    tempArray(freqInd,:) = 0;
+end    
+    
+pointsToSolve = find(tempArray == length(simPowerTest_powers)-powersRemoved);
+
+% testing - dif predicted to total - should be similar
 figure; 
-subplot(4,3,1); imshow(predictedInactivation/100)
+subplot(5,3,1); imshow(predictedInactivation/100)
 
-subplot(4,3,2); imshow(totalInact/100)
+subplot(5,3,2); imshow(totalInact/100)
 
-subplot(4,3,3); imshow(abs(predictedInactivation-totalInact))
+subplot(5,3,3); imshow(abs(predictedInactivation-totalInact)*10)
         
+% testing - dif predicted to sum of kept and lost inact - should be similar
+% similar
+testInactivation = lostInact*ignoredCountNum/initialCountNum + keptInact*predictionCountNum/initialCountNum;
 
-testInactivation = lostInact*ignoredCountNum/initialCountNum+keptInact*predictionCountNum/initialCountNum;
+subplot(5,3,4); imshow(abs(totalInact-testInactivation)*100)
 
-subplot(4,3,4); imshow(abs(totalInact-testInactivation))
+subplot(5,3,5); imshow(testInactivation/100)
 
-subplot(4,3,5); imshow(testInactivation/100)
+subplot(5,3,6); imshow(abs(predictedInactivation-testInactivation)*10)
 
-subplot(4,3,6); imshow(abs(predictedInactivation-testInactivation))
+% testing - dif predictied to kept inact - will be dif
 
+subplot(5,3,8); imshow(keptInact/100)
 
-subplot(4,3,8); imshow(keptInact/100)
+subplot(5,3,9); imshow(abs(predictedInactivation-keptInact)*10)
 
-subplot(4,3,9); imshow(abs(predictedInactivation-keptInact)/10)
-
+% testing - dif predictied to sum of kept inact across size - will be dif
 
 testInactivation = size(predictedInactivation);
 
 for i = 1:length(predictionFreqs)
     for j = 1:length(predictionPowers)
 
-        testInactivation(i,j) = sum(permute(inactRatioBySize_reference(i,j,:), [2 3 1])/100 .* ...
-            influenzaSize_dist(sizesToUse)/predictionCountNum*100);
+        testInactivation(i,j) = sum(permute(inactRatioBySize_reference(i,j,:), [2 3 1])/100 .* predictionSizes_dist); %...
+%             influenzaSize_dist(sizesToUse)/predictionCountNum*100);
         
     end
 end
 
-subplot(4,3,10); imshow(abs(testInactivation - keptInact)/10)
+subplot(5,3,10); imshow(abs(testInactivation - keptInact)*100)
 
-subplot(4,3,11); imshow(testInactivation/100)
+subplot(5,3,11); imshow(testInactivation/100)
 
-subplot(4,3,12); imshow(abs(predictedInactivation-testInactivation)/10)
+subplot(5,3,12); imshow(abs(predictedInactivation-testInactivation)*10)
+
+% testing - scaled dif to kept inact
+
+subplot(5,3,14); imshow(abs(predictedInactivation.*predictionCountNum/initialCountNum-keptInact)*10)
+
+subplot(5,3,15); imshow(abs(predictedInactivation-keptInact./(predictionCountNum/initialCountNum))*10)
+
+tempPoints = find(thresholdArray_reference);
+
+% testing - fn
+fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ... 
+    keptInact, tempPoints, 1:length(predictionPowers));
+
+[sse, ~, fnInact] = fun(thresholdArray_reference(tempPoints));
+
+testInactivation2 = size(predictedInactivation);
+
+for i = 1:length(predictionFreqs)
+    for j = 1:length(predictionPowers)
+
+        inds = find(permute(inactRatioBySize_reference(i,j,:), [3 2 1]) > 50);
+        
+        testInactivation2(i,j) = sum(predictionSizes_dist(inds));
+    end
+end
+
+%should match
+[sse sum((predictedInactivation(:)-totalInact(:)).^2)]
+
+figure;
+subplot(1,2,1)
+imshow(abs(fnInact - testInactivation)/10)
+
+subplot(1,2,2)
+imshow(abs(fnInact - testInactivation2)*10)
 
 %%% Solver
 
@@ -1257,9 +1305,7 @@ fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ...
 
 allowBroad = 1;
 
-fun(thresholdArray_reference(pointsToSolve))
-
-con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, ~allowBroad); %log10
+con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, allowBroad); %log10
 
 % startVals = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
 % ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10

@@ -1,4 +1,4 @@
-function [sse, freqSizeStrucutre, inactivationDiff] = inactivationError(weightsVector, freqSizeStrucutre, sizeWeighting, ...
+function [sse, freqSizeStrucutre, result] = inactivationError(weightsVector, freqSizeStrucutre, sizeWeighting, ...
     inactivationMap, weightsIndexes, powerReference)
 
     freqSizeStrucutre(weightsIndexes) = weightsVector;
@@ -15,7 +15,5 @@ function [sse, freqSizeStrucutre, inactivationDiff] = inactivationError(weightsV
     end
     
     sse = sum((result(:)-inactivationMap(:)).^2); %sum
-
-    inactivationDiff = result - inactivationMap;
 end
 
