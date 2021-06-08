@@ -15,37 +15,6 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
     % c is inequality constraint, solves for c(x) < 0
     % calculate c for each size
     
-    %%% Set log10/integer on equality constraint
-    % probably works best with integer points...
-    
-%     uniThresholds = unique(freqSizeStrucutre(freqSizeStrucutre(:) > 0));
-%     
-%     c = zeros(size(freqSizeStrucutre,2),length(uniThresholds));
-%     
-%     for i = fliplr(1:length(uniThresholds))
-%         pointsBelow = zeros(size(freqSizeStrucutre));
-%         
-%         pointsBelow(freqSizeStrucutre <= uniThresholds(i) & freqSizeStrucutre > 0) = 1;
-%         
-%         indsBelow = find(pointsBelow);
-%         
-%         [xBelow, yBelow] = ind2sub(size(freqSizeStrucutre),  indsBelow);
-%         
-%         for j = 1:size(freqSizeStrucutre,2)
-%             yInds = find(yBelow == j);
-%             
-%             if ~isempty(yInds)
-%                 otherInds = find(yBelow ~= j);
-% 
-%                 for k = 1:length(yInds)
-%                     c(j,i) = c(j,i) + length(find(xBelow(yInds(k)) == xBelow(otherInds)));
-%                 end
-%             else
-%                 c(j,i) = NaN;
-%             end
-%         end
-%     end
-    
     % ceq is equality constraint, solves for ceq(x) = 0
     % calculate ceq for each size
     % find number of troughs in given size and aim for 1
@@ -151,18 +120,20 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
                    % got through each ind out in current
                    for k = 1:length(minimaIndsOut)
                        % get closest ind in former
-                       
                        [~, nearInd] = min(abs(minimaIndsOut(k) - formerInds));
                        
-                       distDiff = minimaIndsOut(k) - formerInds(nearInd);
-                       
-                       % Former inds should be higher, so ok diff lower than zero
-                       if distDiff > 0
-                           % if not add to error
-                           %%% Not sure which error model is best...
-%                            ceq2(i) = 1;
-                           ceq2(i) = ceq2(i) + 1;
-%                            ceq2(i) = ceq2(i) + abs(distDiff);
+                       % Try just doing if minima levels are equal
+                       if freqSizeStrucutre(minimaIndsOut(k),i) == freqSizeStrucutre(formerInds(nearInd),j)
+                           distDiff = minimaIndsOut(k) - formerInds(nearInd);
+
+                           % Former inds should be higher, so ok diff lower than zero
+                           if distDiff > 0
+                               % if not add to error
+                               %%% Not sure which error model is best...
+    %                            ceq2(i) = 1;
+                               ceq2(i) = ceq2(i) + 1;
+    %                            ceq2(i) = ceq2(i) + abs(distDiff);
+                           end
                        end
                    end
                end
@@ -176,12 +147,14 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
                        
                        [~, nearInd] = min(abs(formerIndsOut(k) - minimaInds));
                        
-                       distDiff = minimaInds(nearInd) - formerIndsOut(k);
-                       
-                       % Former inds should be higher, so ok diff lower than zero
-                       if distDiff > 0
-                           % if not add to error
-                           ceq2(i) = ceq2(i) + 1;
+                       if freqSizeStrucutre(minimaInds(nearInd),i) == freqSizeStrucutre(formerIndsOut(k),j)
+                           distDiff = minimaInds(nearInd) - formerIndsOut(k);
+
+                           % Former inds should be higher, so ok diff lower than zero
+                           if distDiff > 0
+                               % if not add to error
+                               ceq2(i) = ceq2(i) + 1;
+                           end
                        end
                    end
                end
@@ -205,12 +178,14 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
                        
                        [~, nearInd] = min(abs(minimaIndsOut(k) - latterInds));
                        
-                       distDiff = minimaIndsOut(k) - latterInds(nearInd);
-                       
-                       % Latter inds should be lower, so ok diff higher than zero
-                       if distDiff < 0
-                           % if not add to error
-                           ceq2(i) = ceq2(i) + 1;
+                       if freqSizeStrucutre(minimaIndsOut(k),i) == freqSizeStrucutre(latterInds(nearInd),j)
+                           distDiff = minimaIndsOut(k) - latterInds(nearInd);
+
+                           % Latter inds should be lower, so ok diff higher than zero
+                           if distDiff < 0
+                               % if not add to error
+                               ceq2(i) = ceq2(i) + 1;
+                           end
                        end
                    end
                end
@@ -223,12 +198,14 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
                        
                        [~, nearInd] = min(abs(latterIndsOut(k) - minimaInds));
                        
-                       distDiff = minimaInds(nearInd) - latterIndsOut(k);
-                       
-                       % Latter inds should be lower, so ok diff higher than zero
-                       if distDiff < 0
-                           % if not add to error
-                           ceq2(i) = ceq2(i) + 1;
+                       if freqSizeStrucutre(minimaInds(nearInd),i) == freqSizeStrucutre(latterIndsOut(k),j)
+                           distDiff = minimaInds(nearInd) - latterIndsOut(k);
+
+                           % Latter inds should be lower, so ok diff higher than zero
+                           if distDiff < 0
+                               % if not add to error
+                               ceq2(i) = ceq2(i) + 1;
+                           end
                        end
                    end
                end
