@@ -947,7 +947,7 @@ plot3(sensitivity_PowerRef(x), sensitivity_FreqRef(y), influenzSize_resonances(z
 
 removeUnused = 1;
 
-swapInReference = 1;
+swapInReference = 0;
 
 predictionFreqs = sort([simFreqTest_freqs simPowerTest_freqs]);
 predictionPowers = simPowerTest_powers;
@@ -1320,10 +1320,10 @@ con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, allowBroad
 % ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
 % lbd = log10(min(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
 
-% startVals = (length(predictionPowers)*ones(length(pointsToSolve),1)); % all max
+startVals = (length(predictionPowers)*ones(length(pointsToSolve),1)); % all max
 % startVals = ones(length(pointsToSolve),1); % all min
-% startVals = thresholdArray(pointsToSolve); % original
-startVals = round(rand(length(pointsToSolve),1)*4)+1; % original
+% startVals = thresholdArray_reference(pointsToSolve); % original
+% startVals = round(rand(length(pointsToSolve),1)*4)+1; % original
 
 ubd = (length(predictionPowers)*ones(length(pointsToSolve),1)); 
 lbd = (ones(length(pointsToSolve),1)); 

@@ -132,17 +132,57 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
         
         minimaInds = find(allMinima(:,i));
         
-        %%% Need to check this constratin works well...
+        % Cover full range - break handled by other constraint
+        %%% Covering encouraged multiple minima, removed
+%         minimaInds = minimaInds(1):minimaInds(end);
         
+        % looking back
         if i > 1
            for j = 1:i-1
                formerInds = find(allMinima(:,j));
-
-               if isempty( intersect(minimaInds, formerInds))
-                   indDif = formerInds(1) - minimaInds;
-                   % Former inds should be lower, so diff greater than zero
-                   if all(indDif < 0)
-                        ceq2(i) = ceq2(i) + sum(indDif < 0);
+%                formerInds = formerInds(1):formerInds(end);
+               
+               % Get inds that don't overlap
+               minimaIndsOut = minimaInds(~ismember(minimaInds, formerInds));
+               formerIndsOut = formerInds(~ismember(formerInds, minimaInds));
+               
+               if ~isempty(minimaIndsOut)
+                   
+                   % got through each ind out in current
+                   for k = 1:length(minimaIndsOut)
+                       % get closest ind in former
+                       
+                       [~, nearInd] = min(abs(minimaIndsOut(k) - formerInds));
+                       
+                       distDiff = minimaIndsOut(k) - formerInds(nearInd);
+                       
+                       % Former inds should be higher, so ok diff lower than zero
+                       if distDiff > 0
+                           % if not add to error
+                           %%% Not sure which error model is best...
+%                            ceq2(i) = 1;
+                           ceq2(i) = ceq2(i) + 1;
+%                            ceq2(i) = ceq2(i) + abs(distDiff);
+                       end
+                   end
+               end
+               
+               %%% I don't think this will double count
+               if ~isempty(formerIndsOut)
+                   
+                   % got through each ind out in former
+                   for k = 1:length(formerIndsOut)
+                       % get closest ind in current
+                       
+                       [~, nearInd] = min(abs(formerIndsOut(k) - minimaInds));
+                       
+                       distDiff = minimaInds(nearInd) - formerIndsOut(k);
+                       
+                       % Former inds should be higher, so ok diff lower than zero
+                       if distDiff > 0
+                           % if not add to error
+                           ceq2(i) = ceq2(i) + 1;
+                       end
                    end
                end
            end
@@ -151,14 +191,47 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
         if i < size(freqSizeStrucutre,2)
             for j = i+1:size(freqSizeStrucutre,2)
                 latterInds = find(allMinima(:,j));
-
-                if isempty( intersect(minimaInds, latterInds))
-                    indDif = minimaInds(1) - latterInds;
-                    %Latter inds should be higher, so diff greater than zero
-                    if all(indDif < 0)
-                        ceq2(i) = ceq2(i) + sum(indDif < 0);
-                    end
-                end
+%                 latterInds = latterInds(1):latterInds(end);
+                
+                % Get inds that don't overlap
+                minimaIndsOut = minimaInds(~ismember(minimaInds, latterInds));
+                latterIndsOut = latterInds(~ismember(latterInds, minimaInds));
+                
+                if ~isempty(minimaIndsOut)
+                   
+                   % got through each ind out in current
+                   for k = 1:length(minimaIndsOut)
+                       % get closest ind in former
+                       
+                       [~, nearInd] = min(abs(minimaIndsOut(k) - latterInds));
+                       
+                       distDiff = minimaIndsOut(k) - latterInds(nearInd);
+                       
+                       % Latter inds should be lower, so ok diff higher than zero
+                       if distDiff < 0
+                           % if not add to error
+                           ceq2(i) = ceq2(i) + 1;
+                       end
+                   end
+               end
+                
+                if ~isempty(latterIndsOut)
+                   
+                   % got through each ind out in former
+                   for k = 1:length(latterIndsOut)
+                       % get closest ind in current
+                       
+                       [~, nearInd] = min(abs(latterIndsOut(k) - minimaInds));
+                       
+                       distDiff = minimaInds(nearInd) - latterIndsOut(k);
+                       
+                       % Latter inds should be lower, so ok diff higher than zero
+                       if distDiff < 0
+                           % if not add to error
+                           ceq2(i) = ceq2(i) + 1;
+                       end
+                   end
+               end
             end
         end
         
