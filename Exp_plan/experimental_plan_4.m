@@ -133,9 +133,9 @@ freq_freqCols = jet(length(simFreqTest_freqs));
 % powerLogRange = 1.5:0.05:1.75; % For fine search. works on 45 or 33
 
 powerLogRange = [1:0.25:2.75];
-% simPowerTest_freqs = [6 8.5 11]; 
+simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
 % simPowerTest_freqs = [7.5 8.5 9.5]; % Given 100 nm, 7 and 10 GHz are limits of inactivation (6 and 11 sometimes included) . halfway between these and center
-simPowerTest_freqs = 8.5;
+% simPowerTest_freqs = 8.5;
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -949,8 +949,8 @@ removeUnused = 1;
 
 swapInReference = 0;
 
-predictionFreqs = sort([simFreqTest_freqs simPowerTest_freqs]);
-predictionPowers = round(10.^(1:0.125:2.75)); simPowerTest_powers;  
+predictionFreqs = unique(sort([simFreqTest_freqs simPowerTest_freqs]));
+predictionPowers = simPowerTest_powers; %round(10.^(1:0.125:2.75)); 
 
 predictionSizes = influenzaSize;
 predictionSizes_dist = influenzaSize_dist/sum(influenzaSize_dist)*100;
@@ -1432,8 +1432,9 @@ a
 
 b(b > 0) = predictionPowers(ceil(b(b > 0)));
 
+% [[0 ceq(size(b,2)+1:end)' 0]' [(1:size(b,2))' b' ceq(1:size(b,2))]']
 [(1:size(b,2))' b' ceq(1:size(b,2)) ceq(size(b,2)+1:end)]'
-% [(1:length(ceq))' thresholdArray' ceq]'
+% [(1:length(ceq))' b' ceq]'
 
 thresholdTemp = thresholdArray;
 thresholdTemp(pointsToSolve) = vals;
