@@ -950,7 +950,7 @@ removeUnused = 1;
 swapInReference = 0;
 
 predictionFreqs = sort([simFreqTest_freqs simPowerTest_freqs]);
-predictionPowers = simPowerTest_powers;
+predictionPowers = round(10.^(1:0.125:2.75)); simPowerTest_powers;  
 
 predictionSizes = influenzaSize;
 predictionSizes_dist = influenzaSize_dist/sum(influenzaSize_dist)*100;
@@ -1033,6 +1033,7 @@ end
 thresholdArray = zeros(length(predictionFreqs), length(influenzaSize));
 
 % initalize threshold array with already measured values
+powerInd = find(predictionPowers == simFreqTest_power);
 for i = 1:length(simFreqTest_freqs)
     freqInd = find(simFreqTest_freqs(i) == predictionFreqs);
     
@@ -1044,8 +1045,7 @@ for i = 1:length(simFreqTest_freqs)
         
         [inds] = sub2ind(size(thresholdArray), freqInd*ones(length(sizeInds),1), sizeInds);
         
-%         thresholdArray(inds) = simFreqTest_power;
-        thresholdArray(inds) = length(simPowerTest_powers)-powersRemoved;
+        thresholdArray(inds) = powerInd;
     end
 end
 
@@ -1061,8 +1061,9 @@ for i = 1:length(simPowerTest_freqs)
 
             [inds] = sub2ind(size(thresholdArray), freqInd*ones(length(sizeInds),1), sizeInds);
 
-%             thresholdArray(inds) = simPowerTest_powers(j);
-            thresholdArray(inds) = j-powersRemoved;
+            powerInd = find(predictionPowers == simPowerTest_powers(j));
+            
+            thresholdArray(inds) = powerInd;
         end
     end
 end
@@ -1227,16 +1228,63 @@ if any(influenzaSize_dist(sizesToUse)/predictionCountNum*100 < stepPercent)
     warning('small sizes are present')
 end
 
-% Lock in lines that are already measured
-tempArray = thresholdArray;
+measArray = thresholdArray;
+
+% Indicate lines that are already measured
 for i = 1:length(simPowerTest_freqs)
     freqInd = find(simPowerTest_freqs(i) == predictionFreqs);
-    tempArray(freqInd,:) = 0;
+    measArray(freqInd, measArray(freqInd,:) > 0) = -1;
 end    
+
+% Decide what to solve, lines locked if powers match
+if all(ismember(predictionPowers, simPowerTest_powers(simPowerTest_powers >= predictionPowers(1))))
+    pointsToSolve = find(measArray > 0);
     
-pointsToSolve = find(tempArray > 0);
+    measuredInFit = 0;
+else
+    pointsToSolve = find(thresholdArray > 0);
+    
+    measuredInFit = 1;
+end
 
+% Interp starting values with centerline
+distanceArray = bwdist(~logical(thresholdArray), 'cityblock');
 
+distanceVals = unique(distanceArray(distanceArray > 0));
+
+measInds = find(measArray == -1);
+
+interpStartArray = zeros(size(thresholdArray));
+
+% Just averaging over all
+%%% if multiple lines measured could do some kind of extrapolation along centerlin
+for i = 1:length(distanceVals)
+   tempAvgInds = find(distanceArray(measInds) == distanceVals(i));
+   
+   tempEntryInds = find(distanceArray(pointsToSolve) == distanceVals(i));
+   
+   avgThresh = round(mean(thresholdArray(measInds(tempAvgInds))));
+   
+   interpStartArray(pointsToSolve(tempEntryInds)) = avgThresh;
+end
+
+% above will overwrite measured inds if powers didn't match, so add back
+interpStartArray(measInds) = thresholdArray(measInds);
+
+[~, measIndsInt] = intersect(pointsToSolve, measInds);
+
+figure; 
+subplot(1,4,1); imshow(thresholdArray/length(predictionPowers));
+
+subplot(1,4,2); imshow(distanceArray/distanceVals(end));
+
+subplot(1,4,3); imshow(interpStartArray/length(predictionPowers));
+
+subplot(1,4,4); imshow(thresholdArray_reference/length(predictionPowers));
+
+%create distance image to border
+
+%%% Testing
 % Get testinactivation2
 testInactivation2 = size(predictedInactivation);
 
@@ -1329,34 +1377,41 @@ subplot(1,2,2)
 imshow(abs(fnInact - testInactivation3)/10)
 title('Diff calc from reference to sum sizes kept w/ threshold (/10)')
 
-%%% Solver
+%% Solver
 
 % errorToUse = predictedInactivation;
-errorToUse = keptInact;
+% errorToUse = keptInact;
+errorToUse = testInactivation3;
 
 fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ... 
-    predictedInactivation, pointsToSolve, 1:length(predictionPowers));
+    errorToUse, pointsToSolve, 1:length(predictionPowers));
 
 allowBroad = 1;
 
 con = @(x)inactivationConstraints(x, (thresholdArray), pointsToSolve, allowBroad); %log10
 
-% startVals = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
-% ubd = log10(max(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
-% lbd = log10(min(simPowerTest_powers)*ones(length(pointsToSolve),1)); %log10
-
 % startVals = (length(predictionPowers)*ones(length(pointsToSolve),1)); % all max
 % startVals = ones(length(pointsToSolve),1); % all min
-startVals = thresholdArray_reference(pointsToSolve); % original
-% startVals = round(rand(length(pointsToSolve),1)*4)+1; % original
+% startVals = thresholdArray_reference(pointsToSolve); % original
+% startVals = round(rand(length(pointsToSolve),1)*4)+1; % rand
+startVals = interpStartArray(pointsToSolve); % Good starting values
 
 ubd = (length(predictionPowers)*ones(length(pointsToSolve),1)); 
 lbd = (ones(length(pointsToSolve),1)); 
 
+% If measured values are being fitted, can still place in start points and use upper limits
+if measuredInFit
+    ubd(measIndsInt) = thresholdArray(measInds);
+    
+    % Don't update if reference used
+    if sum(abs(startVals-thresholdArray_reference(pointsToSolve)))
+        startVals(measIndsInt) = thresholdArray(measInds);
+    end
+end
+
 % Seems to work quite well with integer points on pattern search
     % Recommend is to us ga, but doesn't allow equality constraints
-    
-%%% Set up flag to switch between integer or log values     
+    % seem more https://www.mathworks.com/matlabcentral/answers/285753-pattern-search-with-integer-decision-variable#answer_223391     
     
 % can set to use parallel
 patSearOpts = optimoptions('patternsearch','Display','iter', 'FunctionTolerance', 1e-6, ...
@@ -1385,7 +1440,6 @@ thresholdTemp(pointsToSolve) = vals;
 
 figure; 
 
-
 subplot(2,3,1); imshow(thresholdArray_reference/length(predictionPowers))
 
 subplot(2,3,2); imshow(thresholdTemp/length(predictionPowers))
@@ -1393,11 +1447,11 @@ subplot(2,3,2); imshow(thresholdTemp/length(predictionPowers))
 subplot(2,3,3); imshow(abs(thresholdArray_reference-thresholdTemp)/length(predictionPowers))
 
 
-subplot(2,3,4); imshow(predictedInactivation/100)
+subplot(2,3,4); imshow(errorToUse/100)
 
 subplot(2,3,5); imshow(solInact/100)
 
-subplot(2,3,6); imshow(abs(predictedInactivation-solInact)/10)
+subplot(2,3,6); imshow(abs(errorToUse-solInact)/10)
 
 %%% Want to get confidence intervals for each fit
 
