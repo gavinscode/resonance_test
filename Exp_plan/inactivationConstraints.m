@@ -163,8 +163,7 @@ function [c, ceq] = inactivationConstraints(weightsVector, freqSizeStrucutre, we
         end
     end
     
-    %%%  Skipping this, now taking single minima across freq as con
-    % Could still enforce motion in one/both or diagonal direction 
+    % This seemed to work better than minima constrain across freq
     
     % 2nd equality constraint - minima should be higher freq than former
     % and lower freq the latter

@@ -133,9 +133,10 @@ freq_freqCols = jet(length(simFreqTest_freqs));
 % powerLogRange = 1.5:0.05:1.75; % For fine search. works on 45 or 33
 
 powerLogRange = [1:0.25:2.75];
-simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
+%%% Place for symmetry in freq (or for size dist effected?)
+% simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
 % simPowerTest_freqs = [7.5 8.5 9.5]; % Given 100 nm, 7 and 10 GHz are limits of inactivation (6 and 11 sometimes included) . halfway between these and center
-% simPowerTest_freqs = 8.5;
+simPowerTest_freqs = 8.5;
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -1247,17 +1248,17 @@ else
     measuredInFit = 1;
 end
 
-% Interp starting values with centerline
+%% Test various interp schemes.
+% Get distance map to border
 distanceArray = bwdist(~logical(thresholdArray), 'cityblock');
 
 distanceVals = unique(distanceArray(distanceArray > 0));
 
 measInds = find(measArray == -1);
 
+% Just averaging over all with equal distance
 interpStartArray = zeros(size(thresholdArray));
 
-% Just averaging over all
-%%% if multiple lines measured could do some kind of extrapolation along centerlin
 for i = 1:length(distanceVals)
    tempAvgInds = find(distanceArray(measInds) == distanceVals(i));
    
@@ -1273,18 +1274,110 @@ interpStartArray(measInds) = thresholdArray(measInds);
 
 [~, measIndsInt] = intersect(pointsToSolve, measInds);
 
+% Try 2d scattered interpolant
+cartStartArray = zeros(size(thresholdArray));
+
+[measX, measY] = ind2sub(size(thresholdArray), measInds);
+
+% note x is put into freq to keep it irregular spacing
+% cartesianInterp = scatteredInterpolant(predictionFreqs(measX)', measY, thresholdArray(measInds), 'linear', 'linear');
+
+allInds = find(thresholdArray);
+[allX, allY] = ind2sub(size(thresholdArray), allInds);
+
+[~, bottomInd] = min(allX);
+[~, topInd] = max(allX);
+
+% cartStartArray(allInds) = cartesianInterp(predictionFreqs(allX)', allY);
+
+cartStartArray(allInds) = interp1(measY, thresholdArray(measInds), allY, 'linear', 'extrap');
+
+% Test centreline
+yValues = unique(allY); % x on image
+centerXValues = zeros(length(yValues), 1); % as swapped, actually y on image
+
+for i = 1:length(yValues)
+    inds = find(allY == yValues(i));
+    
+    centerXValues(i) = round(mean( allX(inds)));
+end
+
+centreFreq = 8.5;
+centreFreqInds = find(predictionFreqs(allX) == centreFreq);
+
+[~, centreSizeInd] = min(thresholdArray(allInds(centreFreqInds)));
+centreSize = allY(centreFreqInds(centreSizeInd));
+
+% note transform used is to match image
+centreLineAngle = atan2((predictionFreqs(centerXValues)' - centreFreq), yValues - centreSize)/pi*180;
+centreLineAngle(centreLineAngle < 0) = centreLineAngle(centreLineAngle < 0) + 180;
+avgAngle = mean(centreLineAngle(centreLineAngle > 0))-180
+
+measRot = [(predictionFreqs(measX)' - centreFreq), measY - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
+
+allRot = [(predictionFreqs(allX)' - centreFreq), allY - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
+
+lineRot = [(predictionFreqs(centerXValues)' - centreFreq), yValues - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
+
+figure;
+subplot(1,2,1); hold on
+plot( -measY, predictionFreqs(measX), 'x'); hold on;
+plot( -allY, predictionFreqs(allX), '.')
+
+plot(-allY(bottomInd), predictionFreqs(allX(bottomInd)), 'bo')
+plot(-allY(topInd), predictionFreqs(allX(topInd)), 'ro')
+
+plot(-yValues, predictionFreqs(centerXValues))
+
+subplot(1,2,2); hold on
+plot(-measRot(:,2), measRot(:,1), 'x'); hold on;
+plot(-allRot(:,2), allRot(:,1), '.')
+
+plot(-allRot(bottomInd,2), allRot(bottomInd,1), 'bo')
+plot(-allRot(topInd,2), allRot(topInd,1), 'ro')
+
+plot(-lineRot(:,2), lineRot(:,1))
+
+% Interpolate on centreline
+lineInterpArray = zeros(size(thresholdArray));
+
+% rotInterp = scatteredInterpolant(-measRot(:,2), measRot(:,1), thresholdArray(measInds), 'linear', 'linear');
+% 
+% lineInterpArray(allInds) = rotInterp(-allRot(:,2), allRot(:,1));
+
+lineInterpArray(allInds) = interp1(measRot(:,1), thresholdArray(measInds), allRot(:,1), 'nearest', 'extrap');
+
 figure; 
-subplot(1,4,1); imshow(thresholdArray/length(predictionPowers));
+subplot(3,4,1); imshow(thresholdArray/length(predictionPowers));
+title('Input')
 
-subplot(1,4,2); imshow(distanceArray/distanceVals(end));
+subplot(3,4,2); imshow(thresholdArray_reference/length(predictionPowers));
+title('Reference')
 
-subplot(1,4,3); imshow(interpStartArray/length(predictionPowers));
+subplot(3,4,3); imshow(interpStartArray/length(predictionPowers));
+title('Initial interp')
 
-subplot(1,4,4); imshow(thresholdArray_reference/length(predictionPowers));
+subplot(3,4,4); imshow(abs(interpStartArray - thresholdArray_reference));
+title('Dif start interp to 2d interp')
 
-%create distance image to border
 
-%%% Testing
+subplot(3,4,5); imshow(cartStartArray/length(predictionPowers));
+title('2d interp')
+
+subplot(3,4,6); imshow(abs( cartStartArray - thresholdArray_reference));
+title('2d rot interp to ref')
+
+subplot(3,4,9); imshow(lineInterpArray/length(predictionPowers));
+title('Rot interp')
+%%% Diff here is mostly when outside of range...
+
+subplot(3,4,10); imshow(abs(lineInterpArray - cartStartArray));
+title('Dif rot interp to 2d interp')
+
+subplot(3,4,11); imshow(abs( lineInterpArray - thresholdArray_reference));
+title('Dif rot interp to ref')
+
+%% Testing
 % Get testinactivation2
 testInactivation2 = size(predictedInactivation);
 
