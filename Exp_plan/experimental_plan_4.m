@@ -1340,7 +1340,6 @@ plot( -allY, predictionFreqs(allX), '.')
 
 plot(-allY(bottomInd), predictionFreqs(allX(bottomInd)), 'bo')
 plot(-allY(topInd), predictionFreqs(allX(topInd)), 'ro')
-
 plot(-yValues, xValues)
 
 subplot(1,2,2); hold on
@@ -1349,7 +1348,6 @@ plot(-allRot(:,2), allRot(:,1), '.')
 
 plot(-allRot(bottomInd,2), allRot(bottomInd,1), 'bo')
 plot(-allRot(topInd,2), allRot(topInd,1), 'ro')
-
 plot(-lineRot(:,2), lineRot(:,1))
 
 % Interpolate on centreline
