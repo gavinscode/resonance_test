@@ -1299,7 +1299,7 @@ centerXValues = zeros(length(yValues), 1); % as swapped, actually y on image
 for i = 1:length(yValues)
     inds = find(allY == yValues(i));
     
-    centerXValues(i) = round(mean( allX(inds)));
+    centerXValues(i) = (mean( allX(inds)));
 end
 
 centreFreq = 8.5;
@@ -1308,8 +1308,17 @@ centreFreqInds = find(predictionFreqs(allX) == centreFreq);
 [~, centreSizeInd] = min(thresholdArray(allInds(centreFreqInds)));
 centreSize = allY(centreFreqInds(centreSizeInd));
 
+xValues = zeros(length(centerXValues),1);
+for i = 1:length(centerXValues)
+    if rem(centerXValues(i),1) == 0
+        xValues(i) = predictionFreqs(centerXValues(i));
+    else
+        xValues(i) = mean([predictionFreqs(floor(centerXValues(i))), predictionFreqs(ceil(centerXValues(i)))]);
+    end
+end
+
 % note transform used is to match image
-centreLineAngle = atan2((predictionFreqs(centerXValues)' - centreFreq), yValues - centreSize)/pi*180;
+centreLineAngle = atan2((xValues - centreFreq), yValues - centreSize)/pi*180;
 centreLineAngle(centreLineAngle < 0) = centreLineAngle(centreLineAngle < 0) + 180;
 avgAngle = mean(centreLineAngle(centreLineAngle > 0))-180
 
@@ -1317,7 +1326,12 @@ measRot = [(predictionFreqs(measX)' - centreFreq), measY - centreSize]*[cos(-avg
 
 allRot = [(predictionFreqs(allX)' - centreFreq), allY - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
 
-lineRot = [(predictionFreqs(centerXValues)' - centreFreq), yValues - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
+lineRot = [(xValues - centreFreq), yValues - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
+
+centreLineAngle = atan2(lineRot(:,1), -lineRot(:,2))/pi*180;
+centreLineAngle(centreLineAngle < -90) = centreLineAngle(centreLineAngle < -90) + 180;
+centreLineAngle(centreLineAngle > 90) = centreLineAngle(centreLineAngle > 90) - 180;
+avgAngle = mean(centreLineAngle(centreLineAngle > 0))
 
 figure;
 subplot(1,2,1); hold on
@@ -1327,7 +1341,7 @@ plot( -allY, predictionFreqs(allX), '.')
 plot(-allY(bottomInd), predictionFreqs(allX(bottomInd)), 'bo')
 plot(-allY(topInd), predictionFreqs(allX(topInd)), 'ro')
 
-plot(-yValues, predictionFreqs(centerXValues))
+plot(-yValues, xValues)
 
 subplot(1,2,2); hold on
 plot(-measRot(:,2), measRot(:,1), 'x'); hold on;
@@ -1357,28 +1371,29 @@ title('Reference')
 subplot(3,4,3); imshow(interpStartArray/length(predictionPowers));
 title('Initial interp')
 
-subplot(3,4,4); imshow(abs(interpStartArray - thresholdArray_reference));
+subplot(3,4,4); imshow(abs(interpStartArray - thresholdArray_reference)/length(predictionPowers));
 title('Dif start interp to 2d interp')
 
 
 subplot(3,4,5); imshow(cartStartArray/length(predictionPowers));
 title('2d interp')
 
-subplot(3,4,6); imshow(abs( cartStartArray - thresholdArray_reference));
-title('2d rot interp to ref')
+subplot(3,4,6); imshow(abs( cartStartArray - thresholdArray_reference)/length(predictionPowers));
+title('Dif 2d rot interp to ref')
 
 subplot(3,4,9); imshow(lineInterpArray/length(predictionPowers));
 title('Rot interp')
 %%% Diff here is mostly when outside of range...
 
-subplot(3,4,10); imshow(abs(lineInterpArray - cartStartArray));
+subplot(3,4,10); imshow(abs(lineInterpArray - cartStartArray)/length(predictionPowers));
 title('Dif rot interp to 2d interp')
 
-subplot(3,4,11); imshow(abs( lineInterpArray - thresholdArray_reference));
+subplot(3,4,11); imshow(abs( lineInterpArray - thresholdArray_reference)/length(predictionPowers));
 title('Dif rot interp to ref')
 
-%% Testing
-% Get testinactivation2
+%%% Can take SSE errors for reference above.
+
+% Get testinactivation2 - percent inactivated in given size range
 testInactivation2 = size(predictedInactivation);
 
 for i = 1:length(predictionFreqs)
@@ -1387,6 +1402,20 @@ for i = 1:length(predictionFreqs)
         testInactivation2(i,j) = sum(permute(inactRatioBySize_reference(i,j,:), [2 3 1])/100 .* predictionSizes_dist)/sumRatio;
     end
 end
+
+% Get testinactivation3 - percent inactivated in given size range w/ threshold
+testInactivation3 = size(predictedInactivation);
+
+for i = 1:length(predictionFreqs)
+    for j = 1:length(predictionPowers)
+
+        inds = find(permute(inactRatioBySize_reference(i,j,:), [3 2 1]) > 50);
+        
+        testInactivation3(i,j) = sum(predictionSizes_dist(inds));
+    end
+end
+
+%% Testing
 
 % testing - dif predicted to total - should be similar
 figure; 
@@ -1444,17 +1473,6 @@ fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ...
     keptInact, tempPoints, 1:length(predictionPowers));
 
 [sse, ~, fnInact] = fun(thresholdArray_reference(tempPoints));
-
-testInactivation3 = size(predictedInactivation);
-
-for i = 1:length(predictionFreqs)
-    for j = 1:length(predictionPowers)
-
-        inds = find(permute(inactRatioBySize_reference(i,j,:), [3 2 1]) > 50);
-        
-        testInactivation3(i,j) = sum(predictionSizes_dist(inds));
-    end
-end
 
 %should match
 [sse sum((predictedInactivation(:)-totalInact(:)).^2)]
