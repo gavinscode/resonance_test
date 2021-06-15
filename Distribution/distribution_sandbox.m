@@ -79,8 +79,8 @@ absStd= 5; % std on absolute, not relative values (lower SNR on low inactiviatio
     % For power - single threhsold
         powerThreshold = 45; %45
         % For power - linear interpolation between points then constant
-%         powerThreshold = [35 55]; 
-%         powerThresholdFreqs = [8 9];
+%         powerThreshold = [25 65]; 
+%         powerThresholdFreqs = [7.5 9.5];
 
         % Linear expression - note this is on log10 of power
         powerLinearA = 0.709;
@@ -125,9 +125,9 @@ freq_freqCols = jet(length(simFreqTest_freqs));
 powerLogRange = [1:0.25:2.75];
 %%% Place for symmetry in freq (or for size dist effected?)
 % simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
-simPowerTest_freqs = [7.5 8.5 9.5];
-simPowerTest_freqs = [5 8.5 12]; % three up and 3 down
-% simPowerTest_freqs = 8.5;
+% simPowerTest_freqs = 5:0.5:12;
+% simPowerTest_freqs = [5 6.5 8.5 10.5 11.5]; 
+simPowerTest_freqs = 8.5;
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -1021,6 +1021,10 @@ for i = 1:length(predictionFreqs)
     end
 end
 
+%%%
+warning('Using reference')
+thresholdArray = thresholdArray_reference;
+
 % Remove from sizes and freqs, as above but on more things
 toRemove = zeros(length(predictionSizes),1,'logical');
 
@@ -1078,17 +1082,6 @@ for i = 1:length(simPowerTest_freqs)
     measArray(freqInd, measArray(freqInd,:) > 0) = -1;
 end    
 
-% Decide what to solve, lines locked if powers match
-if all(ismember(predictionPowers, simPowerTest_powers(simPowerTest_powers >= predictionPowers(1))))
-    pointsToSolve = find(measArray > 0);
-    
-    measuredInFit = 0;
-else
-    pointsToSolve = find(thresholdArray > 0);
-    
-    measuredInFit = 1;
-end
-
 % Thresholded error for reference
 inactivationThreshold_ref = size(predictedInactivation);
 
@@ -1102,159 +1095,172 @@ for i = 1:length(predictionFreqs)
 end
 
 %% Test various interp schemes.
-% Get distance map to border
-distanceArray = bwdist(~logical(thresholdArray), 'cityblock');
-
-distanceVals = unique(distanceArray(distanceArray > 0));
-
+% get inerpolation coords
 measInds = find(measArray == -1);
 
-% Just averaging over all with equal distance from edge
-cityBlockInterpArray = zeros(size(thresholdArray));
-
-for i = 1:length(distanceVals)
-   tempAvgInds = find(distanceArray(measInds) == distanceVals(i));
-   
-   tempEntryInds = find(distanceArray(pointsToSolve) == distanceVals(i));
-   
-   avgThresh = round(mean(thresholdArray(measInds(tempAvgInds))));
-   
-   cityBlockInterpArray(pointsToSolve(tempEntryInds)) = avgThresh;
-end
-
-% above will overwrite measured inds if powers didn't match, so add back
-cityBlockInterpArray(measInds) = thresholdArray(measInds);
-
-[~, measIndsInt] = intersect(pointsToSolve, measInds);
-
-% get inerpolation coords
 [measX, measY] = ind2sub(size(thresholdArray), measInds);
 
 allInds = find(thresholdArray);
 [allX, allY] = ind2sub(size(thresholdArray), allInds);
 
-[~, bottomInd] = min(allX);
-[~, topInd] = max(allX);
+
+
+%%% Note, these distance measures could be weird if irregular spacing on interpolation map
+
+% Do 1d interpolation based on distance to edge
+% Get distance map to border
+distanceArray = bwdist(~logical(thresholdArray), 'cityblock');
+
+% Need to average value for each distance
+distanceVals = unique(distanceArray(distanceArray > 0));
+avgVals = zeros(length(distanceVals),1);
+
+for i = 1:length(distanceVals)
+   tempAvgInds = find(distanceArray(measInds) == distanceVals(i));
+   
+   avgVals(i) = mean(thresholdArray(measInds(tempAvgInds)));
+end
+
+cityBlockInterpArray = zeros(size(thresholdArray));
+
+% Nearest and linear basically equal
+cityBlockInterpArray(allInds) = interp1(distanceVals, avgVals, distanceArray(allInds), 'nearest', 'extrap');
+
+% above will overwrite measured inds if powers didn't match, so add back
+cityBlockInterpArray(measInds) = thresholdArray(measInds);
+
+
+
+%%% Now implement different distance map and vertical option
+distanceArrayFromLeft =zeros(size(thresholdArray));
+
+distanceArrayFromRight =zeros(size(thresholdArray));
+
+for i = 1:length(predictionFreqs)
+    inds = find(allX == i);
+    
+    if ~isempty(inds)
+        
+        yVals = sort(allY(inds));
+        
+        % Check line does not extend across whole map
+        if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
+            % Check if first value is not on border
+            if yVals(1) > 1
+                % just increases left to right
+                distanceArrayFromLeft(allInds(inds)) = 1:length(inds);
+            end
+
+            % Reverse from other side
+            if yVals(end) < size(thresholdArray,2)
+                 %decreases from left to right   
+                 distanceArrayFromRight(allInds(inds)) = fliplr(1:length(inds));
+            end
+ 
+        else
+           error('Line extends across whole map') 
+        end
+    end
+end
+
+maxOrig = max([ max(distanceArrayFromLeft(:)), max(distanceArrayFromRight(:))]);
+
+% Always some missing because not placed if on border
+% make look up conversion
+overlapInds = find(distanceArrayFromLeft(allInds) > 0 & distanceArrayFromRight(allInds) > 0);
+missingLeft = find(distanceArrayFromLeft(allInds) == 0);
+
+referenceVals = unique(distanceArrayFromRight(allInds(overlapInds)));
+
+for i = 1:length(referenceVals)
+    % get average for right pixels in overlap
+    tempInds = find(distanceArrayFromRight(allInds(overlapInds)) == referenceVals(i));
+    
+    useValue = mean(distanceArrayFromLeft(allInds(overlapInds(tempInds))))
+   
+    % find right pixels in missing and place
+    tempInds = find(distanceArrayFromRight(allInds(missingLeft)) == referenceVals(i)); 
+    
+    distanceArrayFromLeft(allInds(missingLeft(tempInds))) = useValue;
+end
+
+distanceArrayFromLeft(distanceArrayFromLeft > maxOrig) = maxOrig;
+
+figure;
+subplot(1,2,1)
+imshow(distanceArrayFromLeft/maxOrig)
+
+subplot(1,2,2)
+imshow(distanceArrayFromRight/maxOrig)
+
+% Manually selected - one is basically just the inverse/rotation of the other
+bestDistanceMap = distanceArrayFromLeft;
+
+dualDistInterpArray = zeros(size(thresholdArray));
+
+% Now do 3D interp
+if length(simPowerTest_freqs) > 1
+    % nearest best for both
+    dualDistInterp = scatteredInterpolant(bestDistanceMap(measInds), measX, thresholdArray(measInds), 'nearest', 'nearest');
+
+    dualDistInterpArray(allInds) = dualDistInterp(bestDistanceMap(allInds), allX);
+else
+    % triangulation fails x included - nearest best
+    dualDistInterpArray(allInds) = interp1(bestDistanceMap(measInds), thresholdArray(measInds), distanceArrayFromLeft(allInds), 'nearest', 'extrap');
+end
+
+% above will overwrite measured inds if powers didn't match, so add back
+dualDistInterpArray(measInds) = thresholdArray(measInds);
+
+
 
 % Try 2d scattered interpolant on original data placement
 cartInterpArray = zeros(size(thresholdArray));
-% note x is put into freq to keep it irregular spacing
+
+% note values are put into coordinates, not neccersary if regular spacing on interpolation map
 if length(simPowerTest_freqs) > 1
+    % nearest best for both
     cartesianInterp = scatteredInterpolant(predictionFreqs(measX)', influenzaSize(measY)'*10^9, thresholdArray(measInds), 'nearest', 'nearest');
 
     cartInterpArray(allInds) = cartesianInterp(predictionFreqs(allX)', influenzaSize(allY)'*10^9);
 else
+    % linear best
     cartInterpArray(allInds) = interp1(measY, thresholdArray(measInds), allY, 'nearest', 'extrap');
 end
 
-% Test centreline rotation
-yValues = unique(allY); % x on image
-centerXValues = zeros(length(yValues), 1); % as swapped, actually y on image
-
-for i = 1:length(yValues)
-    inds = find(allY == yValues(i));
-    
-    centerXValues(i) = (mean( allX(inds)));
-end
-
-predictionFreqs
-
-%%% Need to set dynamically
-centreFreq = 8.5;
-centreFreqInds = find(predictionFreqs(allX) == centreFreq);
-
-[~, centreSizeInd] = min(thresholdArray(allInds(centreFreqInds)));
-centreSize = allY(centreFreqInds(centreSizeInd));
-
-centreSize = influenzaSize(centreSize)*10^9;
-
-xValues = zeros(length(centerXValues),1);
-for i = 1:length(centerXValues)
-    if rem(centerXValues(i),1) == 0
-        xValues(i) = predictionFreqs(centerXValues(i));
-    else
-        xValues(i) = mean([predictionFreqs(floor(centerXValues(i))), predictionFreqs(ceil(centerXValues(i)))]);
-    end
-end
-
-% note transform used is to match image
-centreLineAngle = atan2((xValues - centreFreq), yValues - centreSize)/pi*180;
-centreLineAngle(centreLineAngle < 0) = centreLineAngle(centreLineAngle < 0) + 180;
-avgAngle = mean(centreLineAngle(centreLineAngle > 0))-180
-
-measRot = [(predictionFreqs(measX)' - centreFreq), influenzaSize(measY)'*10^9 - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
-
-allRot = [(predictionFreqs(allX)' - centreFreq), influenzaSize(allY)'*10^9 - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
-
-lineRot = [(xValues - centreFreq), influenzaSize(yValues)'*10^9 - centreSize]*[cos(-avgAngle/180*pi) -sin(-avgAngle/180*pi); sin(-avgAngle/180*pi) cos(-avgAngle/180*pi)];
-
-% centreLineAngle = atan2(lineRot(:,1), -lineRot(:,2))/pi*180;
-% centreLineAngle(centreLineAngle < -90) = centreLineAngle(centreLineAngle < -90) + 180;
-% centreLineAngle(centreLineAngle > 90) = centreLineAngle(centreLineAngle > 90) - 180;
-% avgAngle = mean(centreLineAngle(centreLineAngle > 0))
-
-% Interpolate on centreline
-rotInterpArray = zeros(size(thresholdArray));
-if length(simPowerTest_freqs) > 1
-    rotInterp = scatteredInterpolant(-measRot(:,2), measRot(:,1), thresholdArray(measInds), 'nearest', 'nearest');
-
-    rotInterpArray(allInds) = rotInterp(-allRot(:,2), allRot(:,1));
-else
-    rotInterpArray(allInds) = interp1(measRot(:,1), thresholdArray(measInds), allRot(:,1), 'nearest', 'extrap');
-end
-
-% plot transformation
-figure;
-subplot(1,2,1); hold on
-plot( -measY, predictionFreqs(measX), 'x'); hold on;
-plot( -allY, predictionFreqs(allX), '.')
-
-plot(-allY(bottomInd), predictionFreqs(allX(bottomInd)), 'bo')
-plot(-allY(topInd), predictionFreqs(allX(topInd)), 'ro')
-plot(-yValues, xValues)
-
-subplot(1,2,2); hold on
-plot(-measRot(:,2), measRot(:,1), 'x'); hold on;
-plot(-allRot(:,2), allRot(:,1), '.')
-
-plot(-allRot(bottomInd,2), allRot(bottomInd,1), 'bo')
-plot(-allRot(topInd,2), allRot(topInd,1), 'ro')
-plot(-lineRot(:,2), lineRot(:,1))
-
 % plot threshold maps and diffs
 figure; 
-subplot(4,4,1); imshow(thresholdArray/length(predictionPowers));
+subplot(4,2,1); imshow(thresholdArray/length(predictionPowers));
 title('Input')
 
-subplot(4,4,2); imshow(thresholdArray_reference/length(predictionPowers));
+subplot(4,2,2); imshow(thresholdArray_reference/length(predictionPowers));
 title('Reference')
 
-subplot(4,4,5); imshow(cityBlockInterpArray/length(predictionPowers));
+subplot(4,2,3); imshow(cityBlockInterpArray/length(predictionPowers));
 title('Initial interp')
 
-subplot(4,4,6); imshow(abs(cityBlockInterpArray - thresholdArray_reference)/length(predictionPowers));
+subplot(4,2,4); imshow(abs(cityBlockInterpArray - thresholdArray_reference)/length(predictionPowers));
 title('Dif start interp to 2d interp')
 
 sseCityBlock_Thresh = sum((cityBlockInterpArray(:) - thresholdArray_reference(:)).^2);
 
-subplot(4,4,9); imshow(cartInterpArray/length(predictionPowers));
+subplot(4,2,5); imshow(cartInterpArray/length(predictionPowers));
 title('2d interp')
 
-subplot(4,4,10); imshow(abs( cartInterpArray - thresholdArray_reference)/length(predictionPowers));
-title('Dif 2d rot interp to ref')
+subplot(4,2,6); imshow(abs( cartInterpArray - thresholdArray_reference)/length(predictionPowers));
+title('Dif 2d interp to ref')
 
 sse2D_Thresh = sum((cartInterpArray(:) - thresholdArray_reference(:)).^2);
 
-subplot(4,4,13); imshow(rotInterpArray/length(predictionPowers));
-title('Rot interp')
-%%% Diff here is mostly when outside of range...
+subplot(4,2,7); imshow(dualDistInterpArray/length(predictionPowers));
+title('Dual dist interp')
 
-subplot(4,4,14); imshow(abs( rotInterpArray - thresholdArray_reference)/length(predictionPowers));
-title('Dif rot interp to ref')
+subplot(4,2,8); imshow(abs( dualDistInterpArray - thresholdArray_reference)/length(predictionPowers));
+title('Dif dual dist interp to ref')
 
-sseRot_Thresh = sum((rotInterpArray(:) - thresholdArray_reference(:)).^2);
+sseDual_Thresh = sum((dualDistInterpArray(:) - thresholdArray_reference(:)).^2);
 
-errorThresh = [sseCityBlock_Thresh, sse2D_Thresh, sseRot_Thresh]
+errorThresh = [sseCityBlock_Thresh, sse2D_Thresh, sseDual_Thresh]
 
 % Plot error on inactivaiton
 tempPoints = find(thresholdArray_reference);
@@ -1267,9 +1273,9 @@ fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ...
 
 [sseCart_inact, ~, cartInactMap] = fun(cartInterpArray(tempPoints));
 
-[sseRot_inact, ~, rotInactMap] = fun(rotInterpArray(tempPoints));
+[sseDual_inact, ~, dualInactMap] = fun(dualDistInterpArray(tempPoints));
 
-errorFull = [sseCityBlock_inact, sseCart_inact, sseRot_inact]
+errorFull = [sseCityBlock_inact, sseCart_inact, sseDual_inact]
 
 figure;
 subplot(4,4,2)
@@ -1290,19 +1296,28 @@ title('Dif full to city')
 
 subplot(4,4,9)
 imshow(cartInactMap/100)
-title('2D block inact')
+title('2D  inact')
 
 subplot(4,4,10)
 imshow(abs(predictedInactivation-cartInactMap)/10)
 title('Dif full to 2d')
 
 subplot(4,4,13)
-imshow(rotInactMap/100)
-title('Rot block inact')
+imshow(dualInactMap/100)
+title('Dual inact')
 
 subplot(4,4,14)
-imshow(abs(predictedInactivation-rotInactMap)/10)
-title('Dif full to rot')
+imshow(abs(predictedInactivation-dualInactMap)/10)
+title('Dif full to dual')
+
+subplot(4,4,8); hold on
+plot(predictionFreqs, sum(abs(predictedInactivation-cityBlockInactMap),2),'g')
+
+
+plot(predictionFreqs, sum(abs(predictedInactivation-cartInactMap),2),'r')
+
+
+plot(predictionFreqs, sum(abs(predictedInactivation-dualInactMap),2),'b')
 
 % second on threshold (overrights previous)
 fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ... 
@@ -1312,9 +1327,9 @@ fun = @(x)inactivationError(x, (thresholdArray), predictionSizes_dist, ...
 
 [sseCart_inact, ~, cartInactMap] = fun(cartInterpArray(tempPoints));
 
-[sseRot_inact, ~, rotInactMap] = fun(rotInterpArray(tempPoints));
+[sseDual_inact, ~, dualInactMap] = fun(dualDistInterpArray(tempPoints));
 
-errorThresh = [sseCityBlock_inact, sseCart_inact, sseRot_inact]
+errorFullThresh = [sseCityBlock_inact, sseCart_inact, sseDual_inact]
 
 subplot(4,4,7)
 imshow(abs(inactivationThreshold_ref-cityBlockInactMap)/10)
@@ -1325,5 +1340,5 @@ imshow(abs(inactivationThreshold_ref-cartInactMap)/10)
 title('Dif thresh to cart')
 
 subplot(4,4,15)
-imshow(abs(inactivationThreshold_ref-rotInactMap)/10)
-title('Dif thresh to rot')
+imshow(abs(inactivationThreshold_ref-dualInactMap)/10)
+title('Dif thresh to dual')
