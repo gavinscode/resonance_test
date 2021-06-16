@@ -33,7 +33,7 @@ influenzaSize_dist(influenzaSize_dist < sum(influenzaSize_dist)*distPercent/100)
 initialCountNum = sum(influenzaSize_dist);
 
 if length(influenzaSize_samples) ~= initialCountNum
-   error('Problem triming') 
+   error('Problem triming - rerun') 
 end
 
 [~, maxSizeInd] = max(influenzaSize_dist);
@@ -125,9 +125,9 @@ freq_freqCols = jet(length(simFreqTest_freqs));
 powerLogRange = [1:0.25:2.75];
 %%% Place for symmetry in freq (or for size dist effected?)
 % simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
-% simPowerTest_freqs = 5:0.5:12;
-% simPowerTest_freqs = [5 6.5 8.5 10.5 11.5]; 
-simPowerTest_freqs = 8.5;
+simPowerTest_freqs = 1:0.5:15.5;
+% simPowerTest_freqs = [5.5 6 7 7.5 8.5 9 10 10.5 11.5]; 
+% simPowerTest_freqs = 8.5;
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -402,7 +402,7 @@ for i = 1:length(simFreqTest_freqs)
             if inactRatioBySize(i,j,maxInactInd(i,j)) == 100
                 plot(simFreqTest_FreqRef(i,j), maxInactBounds(i,j,1)*10^9,...
                     '.', 'markersize', 8, 'color', freq_freqCols(i,:))
-            elseif inactRatioBySize(i,j,maxInactInd(i,j)) > inactNoiseThresh
+            elseif inactRatioBySize(i,j,maxInactInd(i,j)) >= inactNoiseThresh
                 plot(simFreqTest_FreqRef(i,j), maxInactBounds(i,j,1)*10^9,...
                     'o', 'markersize', 4, 'color', freq_freqCols(i,:))
             end
@@ -696,7 +696,7 @@ end
                         if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100
                             plot3(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9, permute(simPowerTest_freqRef(i,j,countVec), [3 2 1]), ...
                                 '.', 'markersize', 8, 'color', power_freqCols(i,:))
-                        elseif inactRatioBySize(i,j,k,maxInactInd(i,j,k)) > inactNoiseThresh
+                        elseif inactRatioBySize(i,j,k,maxInactInd(i,j,k)) >= inactNoiseThresh
                             plot3(log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9, permute(simPowerTest_freqRef(i,j,countVec), [3 2 1]), ...
                                 'o', 'markersize', 4, 'color', power_freqCols(i,:))
                         end
@@ -754,7 +754,7 @@ end
                     if inactRatioBySize(i,j,k,maxInactInd(i,j,k)) == 100  
                         plot3(permute(simPowerTest_freqRef(i,j,countVec), [3 2 1]), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9, log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), ...
                             '.', 'markersize', 8, 'color', power_powerCols(j,:))
-                    elseif inactRatioBySize(i,j,k,maxInactInd(i,j,k)) > inactNoiseThresh
+                    elseif inactRatioBySize(i,j,k,maxInactInd(i,j,k)) >= inactNoiseThresh
                         plot3(permute(simPowerTest_freqRef(i,j,countVec), [3 2 1]), permute(maxInactBounds(i,j,k,1), [4 3 2 1])*10^9, log10(permute(simPowerTest_powerRef(i,j,k), [3 2 1])), ...
                             'o', 'markersize', 4, 'color', power_powerCols(j,:))
                     end
@@ -769,6 +769,9 @@ powerInactRatioBySize = inactRatioBySize;
 %% Solver using both freq and power scan
 
 removeUnused = 1;
+
+%%% If freq or size spacing used is irregular, will cause interp problems
+    % Irregular power spacing ok? (Regular log anyway)
 
 predictionFreqs_init = unique(sort([simFreqTest_freqs simPowerTest_freqs]));
 % predictionFreqs = predictionFreqs_init;
@@ -865,7 +868,7 @@ for i = 1:length(simFreqTest_freqs)
         
         meanInacts = mean(freqInactRatioBySize(i,countVec,:),2);
         
-        sizeInds = find(meanInacts > inactNoiseThresh);
+        sizeInds = find(meanInacts >= inactNoiseThresh);
         
         [inds] = sub2ind(size(thresholdArray), freqInd*ones(length(sizeInds),1), sizeInds);
         
@@ -881,7 +884,7 @@ for i = 1:length(simPowerTest_freqs)
             
             meanInacts = mean(powerInactRatioBySize(i,j,countVec,:),2);
 
-            sizeInds = find(meanInacts > inactNoiseThresh);
+            sizeInds = find(meanInacts >= inactNoiseThresh);
 
             [inds] = sub2ind(size(thresholdArray), freqInd*ones(length(sizeInds),1), sizeInds);
 
@@ -911,9 +914,9 @@ if ~all(ismember(predictionFreqs, predictionFreqs_init))
     indsCheck = find(thresholdArray == 0);
     indsRef = find(thresholdArray > 0);
     
-    tempInterp = scatteredInterpolant(predictionFreqs(freqRef(indsRef))', influenzaSize(sizeRef(indsRef))'*10^9, ones(length(indsRef),1), 'nearest', 'none');
+    tempInterp = scatteredInterpolant(freqRef(indsRef), sizeRef(indsRef), ones(length(indsRef),1), 'nearest', 'none');
     
-    tempCheckVals = tempInterp(predictionFreqs(freqRef(indsCheck)), influenzaSize(sizeRef(indsCheck))*10^9);
+    tempCheckVals = tempInterp(freqRef(indsCheck), sizeRef(indsCheck));
     
     thresholdArray(indsCheck(tempCheckVals > 0)) = 5;
 end
@@ -1013,7 +1016,7 @@ thresholdArray_reference = zeros(length(predictionFreqs), length(predictionSizes
 for i = 1:length(predictionFreqs)
     for j = fliplr(1:length(predictionPowers))
 
-        sizeInds = find(inactRatioBySize_reference(i,j,:) > 50); %inactNoiseThresh
+        sizeInds = find(inactRatioBySize_reference(i,j,:) >= inactNoiseThresh);
 
         [inds] = sub2ind(size(thresholdArray_reference), i*ones(length(sizeInds),1), sizeInds);
 
@@ -1022,8 +1025,9 @@ for i = 1:length(predictionFreqs)
 end
 
 %%%
-warning('Using reference')
-thresholdArray = thresholdArray_reference;
+% warning('Using reference')
+% thresholdArray = thresholdArray_reference;
+% predictedInactivation = keptInact;
 
 % Remove from sizes and freqs, as above but on more things
 toRemove = zeros(length(predictionSizes),1,'logical');
@@ -1051,7 +1055,7 @@ if removeUnused
     inactRatioBySize_reference(toRemoveTemp,:,:) = [];
     
     for i = 1:length(predictionSizes)
-        if all( thresholdArray(:,i) == 0)
+        if all( thresholdArray(:,i) == 0) 
             toRemove(i) = 1;
         end
     end
@@ -1088,7 +1092,7 @@ inactivationThreshold_ref = size(predictedInactivation);
 for i = 1:length(predictionFreqs)
     for j = 1:length(predictionPowers)
 
-        inds = find(permute(inactRatioBySize_reference(i,j,:), [3 2 1]) > 50);
+        inds = find(permute(inactRatioBySize_reference(i,j,:), [3 2 1]) >= inactNoiseThresh);
         
         inactivationThreshold_ref(i,j) = sum(predictionSizes_dist(inds));
     end
@@ -1112,7 +1116,7 @@ allInds = find(thresholdArray);
 distanceArray = bwdist(~logical(thresholdArray), 'cityblock');
 
 % Need to average value for each distance
-distanceVals = unique(distanceArray(distanceArray > 0));
+distanceVals = unique(distanceArray(measInds));
 avgVals = zeros(length(distanceVals),1);
 
 for i = 1:length(distanceVals)
@@ -1131,7 +1135,7 @@ cityBlockInterpArray(measInds) = thresholdArray(measInds);
 
 
 
-%%% Now implement different distance map and vertical option
+% Now implement different distance map and vertical option
 distanceArrayFromLeft =zeros(size(thresholdArray));
 
 distanceArrayFromRight =zeros(size(thresholdArray));
@@ -1176,7 +1180,7 @@ for i = 1:length(referenceVals)
     % get average for right pixels in overlap
     tempInds = find(distanceArrayFromRight(allInds(overlapInds)) == referenceVals(i));
     
-    useValue = mean(distanceArrayFromLeft(allInds(overlapInds(tempInds))))
+    useValue = mean(distanceArrayFromLeft(allInds(overlapInds(tempInds))));
    
     % find right pixels in missing and place
     tempInds = find(distanceArrayFromRight(allInds(missingLeft)) == referenceVals(i)); 
@@ -1198,7 +1202,7 @@ bestDistanceMap = distanceArrayFromLeft;
 
 dualDistInterpArray = zeros(size(thresholdArray));
 
-% Now do 3D interp
+% Now do interp
 if length(simPowerTest_freqs) > 1
     % nearest best for both
     dualDistInterp = scatteredInterpolant(bestDistanceMap(measInds), measX, thresholdArray(measInds), 'nearest', 'nearest');
@@ -1220,9 +1224,9 @@ cartInterpArray = zeros(size(thresholdArray));
 % note values are put into coordinates, not neccersary if regular spacing on interpolation map
 if length(simPowerTest_freqs) > 1
     % nearest best for both
-    cartesianInterp = scatteredInterpolant(predictionFreqs(measX)', influenzaSize(measY)'*10^9, thresholdArray(measInds), 'nearest', 'nearest');
+    cartesianInterp = scatteredInterpolant(measX, measY, thresholdArray(measInds), 'nearest', 'nearest');
 
-    cartInterpArray(allInds) = cartesianInterp(predictionFreqs(allX)', influenzaSize(allY)'*10^9);
+    cartInterpArray(allInds) = cartesianInterp(allX, allY);
 else
     % linear best
     cartInterpArray(allInds) = interp1(measY, thresholdArray(measInds), allY, 'nearest', 'extrap');
@@ -1312,11 +1316,7 @@ title('Dif full to dual')
 
 subplot(4,4,8); hold on
 plot(predictionFreqs, sum(abs(predictedInactivation-cityBlockInactMap),2),'g')
-
-
 plot(predictionFreqs, sum(abs(predictedInactivation-cartInactMap),2),'r')
-
-
 plot(predictionFreqs, sum(abs(predictedInactivation-dualInactMap),2),'b')
 
 % second on threshold (overrights previous)
@@ -1342,3 +1342,106 @@ title('Dif thresh to cart')
 subplot(4,4,15)
 imshow(abs(inactivationThreshold_ref-dualInactMap)/10)
 title('Dif thresh to dual')
+
+subplot(4,4,16); hold on
+plot(predictionFreqs, sum(abs(inactivationThreshold_ref-cityBlockInactMap),2),'g')
+plot(predictionFreqs, sum(abs(inactivationThreshold_ref-cartInactMap),2),'r')
+plot(predictionFreqs, sum(abs(inactivationThreshold_ref-dualInactMap),2),'b')
+
+%% Test 3D interp - fml
+
+%%% Take as given from previous map, may wish to refine boundaries later
+
+% Test build map using full base and centre line...
+[sizeGrid, freqGrid, powerGrid] = meshgrid(1:length(influenzaSize), 1:length(predictionFreqs), 1:length(predictionPowers));
+
+referenceVol = permute(inactRatioBySize_reference, [1 3 2]);
+
+% Clip low values for now
+% referenceVol(referenceVol < inactNoiseThresh) = 0;
+
+% build exisiting arrays into volumes
+measVol = zeros(size(referenceVol));
+distVol = zeros(size(referenceVol));
+
+for i = 1:length(predictionPowers)
+    measVol(:,:,i) = measArray;
+    
+    distVol(:,:,i) = distanceArrayFromLeft;
+end
+
+% To test
+measVol = referenceVol;
+measVol(measVol > 0) = -1;
+
+% Dist vol still copied in fully...
+
+measInds = find(measVol == -1);
+% allInds = find(referenceVol);
+allInds = find(distVol);
+
+interpVol = zeros(size(referenceVol));
+
+% Now do interp
+if length(simPowerTest_freqs) > 1
+    % nearest best for both
+    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'linear', 'none');
+
+    interpVol(allInds) = distInterp(distVol(allInds), freqGrid(allInds), powerGrid(allInds));
+else
+    % triangulation fails x included - nearest best
+    distInterp = scatteredInterpolant(distVol(measInds), powerGrid(measInds), referenceVol(measInds), 'nearest', 'nearest');
+
+    interpVol(allInds) = distInterp(distVol(allInds), powerGrid(allInds));
+end
+
+% above will overwrite measured inds if powers didn't match, so add back
+interpVol(measInds) = referenceVol(measInds);
+
+interpVol(isnan(interpVol(:))) = 0;
+
+% to test
+% interpVol = referenceVol;
+
+% get inactivation
+interpInactArray = size(predictedInactivation);
+
+for i = 1:length(predictionFreqs)
+    for j = 1:length(predictionPowers)
+
+        interpInactArray(i,j) = sum(predictionSizes_dist/100.*interpVol(i,:,j));
+    end
+end
+
+% plot error
+figure;
+subplot(4,4,2)
+imshow(predictedInactivation/100)
+title('Ref full inact')
+
+subplot(4,4,3)
+imshow(keptInact*predictionCountNum/initialCountNum/100)
+title('Ref kept inact')
+
+subplot(4,4,5)
+imshow(interpInactArray/100)
+title('From volume')
+
+subplot(4,4,6)
+imshow(abs(predictedInactivation-interpInactArray)/10)
+title('Dif full to vol')
+
+subplot(4,4,7)
+imshow(abs(keptInact*predictionCountNum/initialCountNum-interpInactArray)/10)
+title('Dif kept to vol')
+
+subplot(4,4,8); hold on
+plot(predictionFreqs, sum(abs(predictedInactivation-interpInactArray),2),'g')
+
+subplot(4,4,16); hold on
+plot(predictionFreqs, sum(abs(keptInact*predictionCountNum/initialCountNum-interpInactArray),2),'g')
+
+sseVol_full = sum((predictedInactivation(:)-interpInactArray(:)).^2);
+sseVol_thresh = sum((keptInact(:)*predictionCountNum/initialCountNum-interpInactArray(:)).^2);
+
+[sseVol_full, sseVol_thresh]
