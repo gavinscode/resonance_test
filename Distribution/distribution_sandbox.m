@@ -126,10 +126,16 @@ powerLogRange = [1:0.25:2.75];
 %%% Place for symmetry in freq (or for size dist effected?)
 % simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
 % simPowerTest_freqs = 1:0.5:15.5;
-% simPowerTest_freqs = [5.5 6 7 7.5 8.5 9 10 10.5 11.5]; 
-% simPowerTest_freqs = [4.5 5.5 6.5 8.5 10.5 11.5 12.5];
-simPowerTest_freqs = [6.5 8.5 10.5];
+% simPowerTest_freqs = [4.5 5.5 6.5 7.5 8.5 9.5 10.5 11.5 12.5];
+% simPowerTest_freqs = [5.5 6.5 8.5 10.5 11.5];
+% simPowerTest_freqs = [6.5 8.5 10.5];
+
 % simPowerTest_freqs = 8.5;
+
+% problem combos
+% simPowerTest_freqs = [4.5 8.5 12.5]; % very wide goes jagged
+% simPowerTest_freqs = [8.5 11.5]; % misses a bit of left border not on [5.5 8.5];
+simPowerTest_freqs = [4.5 8.5 11.5]; %[5.5 8.5 12.5]; % % assym fails, wtf?
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -1371,7 +1377,8 @@ referenceVol = permute(inactRatioBySize_reference, [1 3 2]);
 
 inactivationData = referenceVol;
 
-testThresh = 10;
+% How high can this be taken without changing results?
+testThresh = 20;
 
 % Clip low values for now
 % referenceVol(referenceVol < inactNoiseThresh) = 0;
@@ -1394,10 +1401,17 @@ for i = fliplr(1:length(predictionPowers))
         compFreqs = simPowerTest_freqs;
     end
     
+    freqLinesMeas = [];
+    
     for j = 1:length(compFreqs)
         freqInd = find(compFreqs(j) == predictionFreqs);
-        tempMeasArray(freqInd, referenceVol(freqInd,:,i) > testThresh) = -1;
-        tempInterpArray(freqInd, :) = -1;
+        
+        if ~isempty(freqInd)
+            tempMeasArray(freqInd, referenceVol(freqInd,:,i) > testThresh) = -1;
+            tempInterpArray(freqInd, :) = -1;
+            
+            freqLinesMeas = [freqLinesMeas freqInd];
+        end
     end    
 
     measVol(:,:,i) = tempMeasArray;
@@ -1421,7 +1435,7 @@ for i = fliplr(1:length(predictionPowers))
             [sRef, fRef] = meshgrid(1:length(sizesToUse), 1:length(predictionFreqs));
 
             indsCheck = find(seedArray == 0 & tempInterpArray == 0);
-            indsRef = find(seedArray == -1 | tempInterpArray == -1);
+            indsRef = find(seedArray == -1 | tempInterpArray == -1); %  
 
             tempInterp = scatteredInterpolant(fRef(indsRef), sRef(indsRef), seedArray(indsRef), 'nearest', 'nearest');
 
@@ -1541,10 +1555,45 @@ for i = fliplr(1:length(predictionPowers))
         
         referenceVals = unique(baseArrayFromLeft(baseInds(overlapInds)));   
         
+        referenceLow = zeros(length(predictionFreqs),1)*NaN;
+        referenceHigh = zeros(length(predictionFreqs),1);
+        
+        for j = freqLinesMeas
+            inds = find(baseX(overlapInds) == j);
+            
+            if ~isempty(inds)
+                % was getting from temp left array but not really needed
+                referenceLow(j) = min(baseArrayFromLeft(baseInds(overlapInds(inds))));
+
+                referenceHigh(j) = max(baseArrayFromLeft(baseInds(overlapInds(inds)))); 
+            end
+        end
+        %%% Need to add here to deal with missing line... assymetry thresh
+%         toRemove = find(referenceHigh(freqLinesMeas) == 0));
+        % Do interp to halfway between removed and last good - need to check side
+        
+        % interp internal with linear and extrap from border with nearest
+        referenceLow(freqLinesMeas(1):freqLinesMeas(end)) = round(interp1(freqLinesMeas, referenceLow(freqLinesMeas),...
+            freqLinesMeas(1):freqLinesMeas(end), 'linear'));
+        referenceLow(1:freqLinesMeas(1)) = referenceLow(freqLinesMeas(1));
+        referenceLow(freqLinesMeas(end):end) = referenceLow(freqLinesMeas(end));
+        
+        referenceHigh(freqLinesMeas(1):freqLinesMeas(end)) = ceil(interp1(freqLinesMeas, referenceHigh(freqLinesMeas),...
+            freqLinesMeas(1):freqLinesMeas(end), 'linear'));
+        referenceHigh(1:freqLinesMeas(1)) = referenceHigh(freqLinesMeas(1));
+        referenceHigh(freqLinesMeas(end):end) = referenceHigh(freqLinesMeas(end));
+        
+        % Linear interp and extrapolation seems similar...
+%         referenceLow = round(interp1(predictionFreqs(freqLinesMeas), referenceLow(freqLinesMeas),...
+%             predictionFreqs, 'linear', 'extrap'));
+%         
+%         referenceHigh = round(interp1(predictionFreqs(freqLinesMeas), referenceHigh(freqLinesMeas),...
+%             predictionFreqs, 'linear', 'extrap'));
+        
         for j = 1:length(predictionFreqs)
             if all(measVol(j,:,i) ~= -1)
-                inds = find(baseX(missingLeft) == j & baseArrayFromLeft(baseInds(missingLeft)) >= referenceVals(1) & ...
-                    baseArrayFromLeft(baseInds(missingLeft)) <= referenceVals(end));
+                inds = find(baseX(missingLeft) == j & baseArrayFromLeft(baseInds(missingLeft)) >= referenceLow(j) & ...
+                    baseArrayFromLeft(baseInds(missingLeft)) <= referenceHigh(j));
 
                 if ~isempty(inds)
                     yVals = sort(baseY(missingLeft(inds)));
@@ -1588,14 +1637,14 @@ measInds = find(measVol == -1);
 allInds = find(distVol);
 % allInds = find(referenceVol > 0);
 
-find(distVol == 0 & referenceVol > testThresh)
+length(find(distVol == 0 & referenceVol > testThresh))
 
 interpVol = zeros(size(referenceVol));
 
 % Now do interp
 if length(simPowerTest_freqs) > 1
     % nearest best for both
-    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'linear', 'linear');
+    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'linear', 'nearest');
 
     interpVol(allInds) = distInterp(distVol(allInds), freqGrid(allInds), powerGrid(allInds));
 else
