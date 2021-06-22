@@ -125,9 +125,9 @@ freq_freqCols = jet(length(simFreqTest_freqs));
 powerLogRange = [1:0.25:2.75];
 %%% Place for symmetry in freq (or for size dist effected?)
 % simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
-% simPowerTest_freqs = 1:0.5:15.5;
+simPowerTest_freqs = 1:0.5:15.5;
 % simPowerTest_freqs = [5.5 6 7 7.5 8.5 9 10 10.5 11.5]; 
-simPowerTest_freqs = [6 8.5 11];
+% simPowerTest_freqs = [6 8.5 11];
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -1172,8 +1172,9 @@ end
 
 maxOrig = max([ max(distanceArrayFromLeft(:)), max(distanceArrayFromRight(:))]);
 
-% Always some missing because not placed if on border
-% make look up conversion
+%%% Distance map updated to use step back rather than look up
+
+% Always some missing because not placed if on border make look up conversion
 overlapInds = find(distanceArrayFromLeft(allInds) > 0 & distanceArrayFromRight(allInds) > 0);
 missingLeft = find(distanceArrayFromLeft(allInds) == 0);
 
@@ -1433,6 +1434,9 @@ for i = fliplr(1:length(predictionPowers))
     levelInds = find(seedArray == -1);
     [levelX, levelY] = ind2sub(size(thresholdArray), levelInds);
     
+    maxOpenLeft = [];
+    maxOpenRight = [];
+    
     for j = 1:length(predictionFreqs)
         inds = find(levelX == j);
 
@@ -1446,12 +1450,21 @@ for i = fliplr(1:length(predictionPowers))
                 if yVals(1) > 1
                     % just increases left to right
                     tempArrayFromLeft(levelInds(inds)) = 1:length(inds);
+                    
+                    if yVals(end) < size(thresholdArray,2)
+                        maxOpenLeft = [maxOpenLeft length(inds)];
+                    end
                 end
 
                 % Reverse from other side
+                %%% Not really needed now
                 if yVals(end) < size(thresholdArray,2)
                      %decreases from left to right   
                      tempArrayFromRight(levelInds(inds)) = fliplr(1:length(inds));
+                     
+                     if yVals(end) > 1
+                        maxOpenRight = [maxOpenRight length(inds)];
+                     end
                 end
 
             else
@@ -1460,32 +1473,56 @@ for i = fliplr(1:length(predictionPowers))
         end
     end
 
-    maxOrig = max([ max(tempArrayFromLeft(:)), max(tempArrayFromRight(:))]);
-
-    % Always some missing because not placed if on border
-    % make look up conversion
-    overlapInds = find(tempArrayFromLeft(levelInds) > 0 & tempArrayFromRight(levelInds) > 0);
     missingLeft = find(tempArrayFromLeft(levelInds) == 0);
-
-    referenceVals = unique(tempArrayFromRight(levelInds(overlapInds)));   
     
-    for j = 1:length(referenceVals)
-        % get average for right pixels in overlap
-        tempInds = find(tempArrayFromRight(levelInds(overlapInds)) == referenceVals(j));
+    % Always some missing because not placed if on border make look up conversion
+%     overlapInds = find(tempArrayFromLeft(levelInds) > 0 & tempArrayFromRight(levelInds) > 0);
 
-        useValue = mean(tempArrayFromLeft(levelInds(overlapInds(tempInds))));
+%     referenceVals = unique(tempArrayFromRight(levelInds(overlapInds)));   
+%     
+%     for j = 1:length(referenceVals)
+%         % get average for right pixels in overlap
+%         tempInds = find(tempArrayFromRight(levelInds(overlapInds)) == referenceVals(j));
+% 
+%         useValue = mean(tempArrayFromLeft(levelInds(overlapInds(tempInds))));
+% 
+%         % find right pixels in missing and place
+%         tempInds = find(tempArrayFromRight(levelInds(missingLeft)) == referenceVals(j));
+% 
+%         tempArrayFromLeft(levelInds(missingLeft(tempInds))) = useValue;
+%     end
 
-        % find right pixels in missing and place
-        tempInds = find(tempArrayFromRight(levelInds(missingLeft)) == referenceVals(j));
-
-        tempArrayFromLeft(levelInds(missingLeft(tempInds))) = useValue;
+    if all(maxOpenLeft ~= maxOpenLeft(1))
+       error('Need to revise') 
     end
 
+    maxOpenLeft = maxOpenLeft(1);
+    
+    % Changed to using step back instead of look up table
+    for j = 1:length(predictionFreqs)
+        inds = find(levelX(missingLeft) == j);
+        
+        if ~isempty(inds)
+            yVals = sort(levelY(missingLeft(inds)));
+
+            % Check line does not extend across whole map
+            if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
+                
+                tempArrayFromLeft(levelInds(missingLeft(inds))) =  (maxOpenLeft-length(inds)+1):maxOpenLeft;
+                
+                % if border is low, step it up
+                if tempArrayFromLeft(levelInds(missingLeft(inds(1)))) <= 0
+                    tempArrayFromLeft(levelInds(missingLeft(inds))) = tempArrayFromLeft(levelInds(missingLeft(inds))) + 1 - tempArrayFromLeft(levelInds(missingLeft(inds(1))));
+                end
+            end
+        end
+    end
+    
     % On border - may need to fix in future
     missedInds = find(tempArrayFromLeft(levelInds(missingLeft)) == 0)
     
     % If not base, interpolate up as well
-    if length(predictionPowers) ~= i
+    if 0; %length(predictionPowers) ~= i
         baseInds = find(baseSeedArray == -1);
         baseArrayFromLeft = distVol(:,:,end);
         
@@ -1523,7 +1560,7 @@ measInds = find(measVol == -1);
 allInds = find(distVol);
 % allInds = find(referenceVol > 0);
 
-find(distVol == 0 & referenceVol > 0)
+find(distVol == 0 & referenceVol > testThresh)
 
 interpVol = zeros(size(referenceVol));
 
