@@ -1366,6 +1366,8 @@ referenceVol = permute(inactRatioBySize_reference, [1 3 2]);
 
 inactivationData = referenceVol;
 
+testThresh = 10;
+
 % Clip low values for now
 % referenceVol(referenceVol < inactNoiseThresh) = 0;
 
@@ -1388,7 +1390,7 @@ for i = fliplr(1:length(predictionPowers))
     
     for j = 1:length(compFreqs)
         freqInd = find(compFreqs(j) == predictionFreqs);
-        tempArray(freqInd, referenceVol(freqInd,:,i) > 10) = -1;
+        tempArray(freqInd, referenceVol(freqInd,:,i) > testThresh) = -1;
     end    
 
     measVol(:,:,i) = tempArray;
@@ -1420,6 +1422,8 @@ for i = fliplr(1:length(predictionPowers))
 
             seedArray(indsCheck(tempCheckVals > 0)) = -1;   
         end
+        
+        baseSeedArray = seedArray;
     end
     
     % Do dist map as for 2D
@@ -1480,6 +1484,30 @@ for i = fliplr(1:length(predictionPowers))
     % On border - may need to fix in future
     missedInds = find(tempArrayFromLeft(levelInds(missingLeft)) == 0)
     
+    % If not base, interpolate up as well
+    if length(predictionPowers) ~= i
+        baseInds = find(baseSeedArray == -1);
+        baseArrayFromLeft = distVol(:,:,end);
+        
+        overlapInds = find(tempArrayFromLeft(baseInds) > 0 & baseArrayFromLeft(baseInds) > 0);
+        missingLeft = find(tempArrayFromLeft(baseInds) == 0);
+        
+        referenceVals = unique(baseArrayFromLeft(baseInds(overlapInds)));   
+    
+        for j = 1:length(referenceVals)
+            % get average for right pixels in overlap
+%             tempInds = find(baseArrayFromLeft(baseInds(overlapInds)) == referenceVals(j));
+% 
+%             useValue = mean(tempArrayFromLeft(baseInds(overlapInds(tempInds))));
+
+            % find right pixels in missing and place
+            tempInds = find(baseArrayFromLeft(baseInds(missingLeft)) == referenceVals(j));
+
+            tempArrayFromLeft(baseInds(missingLeft(tempInds))) = 1;
+        end
+        
+    end
+    
     distVol(:,:,i) = tempArrayFromLeft; %distanceArrayFromLeft;
 end
 
@@ -1519,11 +1547,14 @@ interpVol(isnan(interpVol(:))) = 0;
 
 figure;
 for i = 1:5
-    subplot(5,2,i*2-1)
+    subplot(5,3,i*3-2)
     imshow(referenceVol(:,:,i)/100)
     
-    subplot(5,2,i*2)
+    subplot(5,3,i*3-1)
     imshow(interpVol(:,:,i)/100)
+    
+    subplot(5,3,i*3)
+    imshow(distVol(:,:,i))
 end
 
 % get inactivation
