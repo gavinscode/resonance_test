@@ -125,9 +125,11 @@ freq_freqCols = jet(length(simFreqTest_freqs));
 powerLogRange = [1:0.25:2.75];
 %%% Place for symmetry in freq (or for size dist effected?)
 % simPowerTest_freqs = [6 7.5 8.5 9.5 11]; 
-simPowerTest_freqs = 1:0.5:15.5;
+% simPowerTest_freqs = 1:0.5:15.5;
 % simPowerTest_freqs = [5.5 6 7 7.5 8.5 9 10 10.5 11.5]; 
-% simPowerTest_freqs = [6 8.5 11];
+% simPowerTest_freqs = [4.5 5.5 6.5 8.5 10.5 11.5 12.5];
+simPowerTest_freqs = [6.5 8.5 10.5];
+% simPowerTest_freqs = 8.5;
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -911,6 +913,8 @@ if ~all(ismember(predictionFreqs, predictionFreqs_init))
     % then do interpolant - smooths edges a bit
     [sizeRef, freqRef] = meshgrid(1:length(influenzaSize), 1:length(predictionFreqs));
     
+    %%% Should modify to use 0 points on measured lines as below
+    
     indsCheck = find(thresholdArray == 0);
     indsRef = find(thresholdArray > 0);
     
@@ -1381,7 +1385,8 @@ includedVol(includedVol > 0) = 1;
 
 for i = fliplr(1:length(predictionPowers))
     
-    tempArray = thresholdArray*0;
+    tempMeasArray = thresholdArray*0;
+    tempInterpArray = thresholdArray*0;
     
     if i == length(predictionPowers)
         compFreqs = predictionFreqs_init;
@@ -1391,10 +1396,11 @@ for i = fliplr(1:length(predictionPowers))
     
     for j = 1:length(compFreqs)
         freqInd = find(compFreqs(j) == predictionFreqs);
-        tempArray(freqInd, referenceVol(freqInd,:,i) > testThresh) = -1;
+        tempMeasArray(freqInd, referenceVol(freqInd,:,i) > testThresh) = -1;
+        tempInterpArray(freqInd, :) = -1;
     end    
 
-    measVol(:,:,i) = tempArray;
+    measVol(:,:,i) = tempMeasArray;
     
     seedArray =  measVol(:,:,i);
     % If first, do interpolation across
@@ -1414,14 +1420,14 @@ for i = fliplr(1:length(predictionPowers))
             % then do interpolant - smooths edges a bit
             [sRef, fRef] = meshgrid(1:length(sizesToUse), 1:length(predictionFreqs));
 
-            indsCheck = find(seedArray == 0);
-            indsRef = find(seedArray > 0);
+            indsCheck = find(seedArray == 0 & tempInterpArray == 0);
+            indsRef = find(seedArray == -1 | tempInterpArray == -1);
 
-            tempInterp = scatteredInterpolant(fRef(indsRef), sRef(indsRef), ones(length(indsRef),1), 'nearest', 'none');
+            tempInterp = scatteredInterpolant(fRef(indsRef), sRef(indsRef), seedArray(indsRef), 'nearest', 'nearest');
 
-            tempCheckVals = tempInterp(fRef(indsCheck), sRef(indsCheck));
+            seedArray(indsCheck) = tempInterp(fRef(indsCheck), sRef(indsCheck));
 
-            seedArray(indsCheck(tempCheckVals > 0)) = -1;   
+            seedArray(isnan(seedArray)) = 0;
         end
         
         baseSeedArray = seedArray;
@@ -1445,7 +1451,7 @@ for i = fliplr(1:length(predictionPowers))
             yVals = sort(levelY(inds));
 
             % Check line does not extend across whole map
-            if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
+            if ~(yVals(1) == 1 & yVals(end) == size(thresholdArray,2))
                 % Check if first value is not on border
                 if yVals(1) > 1
                     % just increases left to right
@@ -1492,11 +1498,13 @@ for i = fliplr(1:length(predictionPowers))
 %         tempArrayFromLeft(levelInds(missingLeft(tempInds))) = useValue;
 %     end
 
-    if all(maxOpenLeft ~= maxOpenLeft(1))
+    if any(maxOpenLeft ~= maxOpenLeft(1))
        error('Need to revise') 
     end
-
     maxOpenLeft = maxOpenLeft(1);
+    
+    %%% What to do if non-unique mapping? 
+        %%% Incorperate frequency into interpolation?
     
     % Changed to using step back instead of look up table
     for j = 1:length(predictionFreqs)
@@ -1508,41 +1516,61 @@ for i = fliplr(1:length(predictionPowers))
             % Check line does not extend across whole map
             if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
                 
+                % Step inds down from max
                 tempArrayFromLeft(levelInds(missingLeft(inds))) =  (maxOpenLeft-length(inds)+1):maxOpenLeft;
                 
                 % if border is low, step it up
                 if tempArrayFromLeft(levelInds(missingLeft(inds(1)))) <= 0
                     tempArrayFromLeft(levelInds(missingLeft(inds))) = tempArrayFromLeft(levelInds(missingLeft(inds))) + 1 - tempArrayFromLeft(levelInds(missingLeft(inds(1))));
                 end
+            else
+               error('Line extends across whole map') 
             end
         end
     end
     
-    % On border - may need to fix in future
-    missedInds = find(tempArrayFromLeft(levelInds(missingLeft)) == 0)
-    
     % If not base, interpolate up as well
-    if 0; %length(predictionPowers) ~= i
+    if length(predictionPowers) ~= i
         baseInds = find(baseSeedArray == -1);
+        [baseX, baseY] = ind2sub(size(thresholdArray), baseInds);
+        
         baseArrayFromLeft = distVol(:,:,end);
         
         overlapInds = find(tempArrayFromLeft(baseInds) > 0 & baseArrayFromLeft(baseInds) > 0);
         missingLeft = find(tempArrayFromLeft(baseInds) == 0);
         
         referenceVals = unique(baseArrayFromLeft(baseInds(overlapInds)));   
-    
-        for j = 1:length(referenceVals)
-            % get average for right pixels in overlap
-%             tempInds = find(baseArrayFromLeft(baseInds(overlapInds)) == referenceVals(j));
-% 
-%             useValue = mean(tempArrayFromLeft(baseInds(overlapInds(tempInds))));
-
-            % find right pixels in missing and place
-            tempInds = find(baseArrayFromLeft(baseInds(missingLeft)) == referenceVals(j));
-
-            tempArrayFromLeft(baseInds(missingLeft(tempInds))) = 1;
-        end
         
+        for j = 1:length(predictionFreqs)
+            if all(measVol(j,:,i) ~= -1)
+                inds = find(baseX(missingLeft) == j & baseArrayFromLeft(baseInds(missingLeft)) >= referenceVals(1) & ...
+                    baseArrayFromLeft(baseInds(missingLeft)) <= referenceVals(end));
+
+                if ~isempty(inds)
+                    yVals = sort(baseY(missingLeft(inds)));
+
+                    % Check line does not extend across whole map
+                    if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
+
+                        % Check if first value is not on border
+                        if yVals(1) > 1
+                            % just count up normally
+                            tempArrayFromLeft(baseInds(missingLeft(inds))) = 1:length(inds);
+                        else
+                             % Step inds down from max
+                             tempArrayFromLeft(baseInds(missingLeft(inds))) =  (maxOpenLeft-length(inds)+1):maxOpenLeft;
+
+                            % if border is low, step it up
+                            if tempArrayFromLeft(baseInds(missingLeft(inds(1)))) <= 0
+                                tempArrayFromLeft(baseInds(missingLeft(inds))) = tempArrayFromLeft(baseInds(missingLeft(inds))) + 1 - tempArrayFromLeft(baseInds(missingLeft(inds(1))));
+                            end
+                        end
+                    else
+                        error('Line extends across whole map') 
+                    end
+                end
+            end
+        end
     end
     
     distVol(:,:,i) = tempArrayFromLeft; %distanceArrayFromLeft;
@@ -1567,7 +1595,7 @@ interpVol = zeros(size(referenceVol));
 % Now do interp
 if length(simPowerTest_freqs) > 1
     % nearest best for both
-    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'linear', 'none');
+    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'linear', 'linear');
 
     interpVol(allInds) = distInterp(distVol(allInds), freqGrid(allInds), powerGrid(allInds));
 else
@@ -1580,18 +1608,23 @@ end
 % above will overwrite measured inds if powers didn't match, so add back
 interpVol(measInds) = referenceVol(measInds);
 
+interpVol(interpVol > 100) = 100;
+interpVol(interpVol < 0) = 0;
 interpVol(isnan(interpVol(:))) = 0;
 
 figure;
 for i = 1:5
-    subplot(5,3,i*3-2)
+    subplot(5,4,i*4-3)
     imshow(referenceVol(:,:,i)/100)
     
-    subplot(5,3,i*3-1)
+    subplot(5,4,i*4-2)
     imshow(interpVol(:,:,i)/100)
     
-    subplot(5,3,i*3)
-    imshow(distVol(:,:,i))
+    subplot(5,4,i*4-1)
+    imshow(distVol(:,:,i)/max(max(distVol(:,:,i))))
+    
+    subplot(5,4,i*4)
+    imshow(measVol(:,:,i)*-1)
 end
 
 % get inactivation
