@@ -77,10 +77,11 @@ absStd= 5; % std on absolute, not relative values (lower SNR on low inactiviatio
         curveSpread = 2.3;
 
     % For power - single threhsold
+        %%% based on frequency, should adjust to be size dependent..
         powerThreshold = 45; %45
         % For power - linear interpolation between points then constant
-%         powerThreshold = [25 65]; 
-%         powerThresholdFreqs = [7.5 9.5];
+        powerThreshold = [25 65]; 
+        powerThresholdFreqs = [7.5 9.5];
 
         % Linear expression - note this is on log10 of power
         powerLinearA = 0.709;
@@ -128,14 +129,14 @@ powerLogRange = [1:0.25:2.75];
 % simPowerTest_freqs = 1:0.5:15.5;
 % simPowerTest_freqs = [4.5 5.5 6.5 7.5 8.5 9.5 10.5 11.5 12.5];
 % simPowerTest_freqs = [5.5 6.5 8.5 10.5 11.5];
-% simPowerTest_freqs = [6.5 8.5 10.5];
+simPowerTest_freqs = [6.5 8.5 10.5];
 
 % simPowerTest_freqs = 8.5;
 
 % problem combos
-% simPowerTest_freqs = [4.5 8.5 12.5]; % very wide goes jagged
-% simPowerTest_freqs = [8.5 11.5]; % misses a bit of left border not on [5.5 8.5];
-simPowerTest_freqs = [4.5 8.5 11.5]; %[5.5 8.5 12.5]; % % assym fails, wtf?
+% simPowerTest_freqs = [4.5 8.5 12.5]; % wide
+% simPowerTest_freqs = [5.5 8.5]; % [8.5 11.5]; %  pair
+% simPowerTest_freqs = [4.5 8.5 11.5]; %[5.5 8.5 12.5]; %; % % assym
 
 simPowerTest_powers = round(10.^(powerLogRange))
 simPowerTest_time = simFreqTest_time;
@@ -1378,7 +1379,11 @@ referenceVol = permute(inactRatioBySize_reference, [1 3 2]);
 inactivationData = referenceVol;
 
 % How high can this be taken without changing results?
-testThresh = 20;
+    %%% 10 v 20 changes error when using all rows
+testThresh = 10;
+
+% distInterp = 'nearest'; % best if wide spacing...
+distInterp = 'linear'; % best for most
 
 % Clip low values for now
 % referenceVol(referenceVol < inactNoiseThresh) = 0;
@@ -1471,9 +1476,7 @@ for i = fliplr(1:length(predictionPowers))
                     % just increases left to right
                     tempArrayFromLeft(levelInds(inds)) = 1:length(inds);
                     
-                    if yVals(end) < size(thresholdArray,2)
-                        maxOpenLeft = [maxOpenLeft length(inds)];
-                    end
+                    maxOpenLeft = [maxOpenLeft length(inds)];
                 end
 
                 % Reverse from other side
@@ -1482,9 +1485,7 @@ for i = fliplr(1:length(predictionPowers))
                      %decreases from left to right   
                      tempArrayFromRight(levelInds(inds)) = fliplr(1:length(inds));
                      
-                     if yVals(end) > 1
-                        maxOpenRight = [maxOpenRight length(inds)];
-                     end
+                    maxOpenRight = [maxOpenRight length(inds)];
                 end
 
             else
@@ -1493,34 +1494,12 @@ for i = fliplr(1:length(predictionPowers))
         end
     end
 
+    maxOpenLeft = max(maxOpenLeft);
+    
     missingLeft = find(tempArrayFromLeft(levelInds) == 0);
     
-    % Always some missing because not placed if on border make look up conversion
-%     overlapInds = find(tempArrayFromLeft(levelInds) > 0 & tempArrayFromRight(levelInds) > 0);
-
-%     referenceVals = unique(tempArrayFromRight(levelInds(overlapInds)));   
-%     
-%     for j = 1:length(referenceVals)
-%         % get average for right pixels in overlap
-%         tempInds = find(tempArrayFromRight(levelInds(overlapInds)) == referenceVals(j));
-% 
-%         useValue = mean(tempArrayFromLeft(levelInds(overlapInds(tempInds))));
-% 
-%         % find right pixels in missing and place
-%         tempInds = find(tempArrayFromRight(levelInds(missingLeft)) == referenceVals(j));
-% 
-%         tempArrayFromLeft(levelInds(missingLeft(tempInds))) = useValue;
-%     end
-
-    if any(maxOpenLeft ~= maxOpenLeft(1))
-       error('Need to revise') 
-    end
-    maxOpenLeft = maxOpenLeft(1);
-    
-    %%% What to do if non-unique mapping? 
-        %%% Incorperate frequency into interpolation?
-    
     % Changed to using step back instead of look up table
+    flipLeftArray = tempArrayFromLeft;
     for j = 1:length(predictionFreqs)
         inds = find(levelX(missingLeft) == j);
         
@@ -1531,11 +1510,13 @@ for i = fliplr(1:length(predictionPowers))
             if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
                 
                 % Step inds down from max
-                tempArrayFromLeft(levelInds(missingLeft(inds))) =  (maxOpenLeft-length(inds)+1):maxOpenLeft;
+                flipLeftArray(levelInds(missingLeft(inds))) =  (maxOpenLeft-length(inds)+1):maxOpenLeft;
                 
+                % Removed as in following section, but rarely used?
                 % if border is low, step it up
-                if tempArrayFromLeft(levelInds(missingLeft(inds(1)))) <= 0
-                    tempArrayFromLeft(levelInds(missingLeft(inds))) = tempArrayFromLeft(levelInds(missingLeft(inds))) + 1 - tempArrayFromLeft(levelInds(missingLeft(inds(1))));
+                if flipLeftArray(levelInds(missingLeft(inds(1)))) < 0
+                    warning('step up from neg used 1st')
+                    flipLeftArray(levelInds(missingLeft(inds))) = flipLeftArray(levelInds(missingLeft(inds))) + 1 - flipLeftArray(levelInds(missingLeft(inds(1))));
                 end
             else
                error('Line extends across whole map') 
@@ -1549,49 +1530,154 @@ for i = fliplr(1:length(predictionPowers))
         [baseX, baseY] = ind2sub(size(thresholdArray), baseInds);
         
         baseArrayFromLeft = distVol(:,:,end);
-        
-        overlapInds = find(tempArrayFromLeft(baseInds) > 0 & baseArrayFromLeft(baseInds) > 0);
+
+        % Overlap taken from flipped array
+        overlapInds = find(flipLeftArray(baseInds) > 0 & baseArrayFromLeft(baseInds) > 0);
+        % Missing filled onto left array so following maxOpenLeft can be updated
         missingLeft = find(tempArrayFromLeft(baseInds) == 0);
         
-        referenceVals = unique(baseArrayFromLeft(baseInds(overlapInds)));   
-        
-        referenceLow = zeros(length(predictionFreqs),1)*NaN;
+        referenceLow = zeros(length(predictionFreqs),1);
         referenceHigh = zeros(length(predictionFreqs),1);
+        borderLow = zeros(length(predictionFreqs),1);
+        borderHigh = zeros(length(predictionFreqs),1);
         
         for j = freqLinesMeas
             inds = find(baseX(overlapInds) == j);
             
             if ~isempty(inds)
-                % was getting from temp left array but not really needed
                 referenceLow(j) = min(baseArrayFromLeft(baseInds(overlapInds(inds))));
-
+                % Flag point on left
+                if any(baseY(overlapInds(inds)) == 1)
+                    borderLow(j) = 1;
+                end
+                
                 referenceHigh(j) = max(baseArrayFromLeft(baseInds(overlapInds(inds)))); 
+                % or high from right borde
+                if any(baseY(overlapInds(inds)) == size(thresholdArray,2))
+                    borderHigh(j) = 1;
+                end
+            else
+                referenceLow(j) = NaN;
+                referenceHigh(j) = NaN;
             end
         end
+        
+        % find unique rows of base array and give equal value in interp 
+        [~, inds2Unique, inds2Full] = unique(baseArrayFromLeft,'rows');
+        
+        tempPredictionFreqs = predictionFreqs;
+        for j = 1:length(inds2Full)
+            inds = find(inds2Full == inds2Full(j));
+            
+            tempPredictionFreqs(j) = mean(predictionFreqs(inds));
+        end
+        
         %%% Need to add here to deal with missing line... assymetry thresh
-%         toRemove = find(referenceHigh(freqLinesMeas) == 0));
         % Do interp to halfway between removed and last good - need to check side
         
+        % Identify if points on border can be used
+        notBorderInds = find(referenceLow(freqLinesMeas) > 0 & borderLow(freqLinesMeas) == 0);
+        borderInds = find(borderLow(freqLinesMeas));
+        for j = 1:length(borderInds)
+            % Using end from not border as left border at high freqs
+                % would be more robust is closest picked
+           if referenceLow(freqLinesMeas(borderInds(j))) > referenceLow(freqLinesMeas(notBorderInds(end)))
+               referenceLow(freqLinesMeas(borderInds(j))) = 0;
+           end
+        end
+        
+        notBorderInds = find(referenceHigh(freqLinesMeas) > 0 & borderHigh(freqLinesMeas) == 0);
+        borderInds = find(borderHigh(freqLinesMeas));
+        for j = 1:length(borderInds)
+            % Using 1 from not border as right border at low freqs
+           if referenceHigh(freqLinesMeas(borderInds(j))) < referenceHigh(freqLinesMeas(notBorderInds(1)))
+               referenceHigh(freqLinesMeas(borderInds(j))) = 0;
+           end
+        end
+        
+        useLow = find(referenceLow(freqLinesMeas) > 0);
+        useHigh = find(referenceHigh(freqLinesMeas) > 0);
+        
+        % deal with missing lines - assumes they are on bounds of good area
+        if any(isnan(referenceLow(freqLinesMeas)) | isnan(referenceHigh(freqLinesMeas)))
+            blockInds = find(isnan(referenceLow(freqLinesMeas)) | isnan(referenceHigh(freqLinesMeas)));
+            useInds = unique([useLow' useHigh']);
+            
+            freqsToRemove = zeros(length(predictionFreqs),1, 'logical');
+            
+            for j = 1:length(blockInds)
+               if any(useInds > blockInds(j)) & any(useInds < blockInds(j))
+                   error('Need to treat')
+               elseif any(useInds > blockInds(j))
+                   tempTopInds = find(useInds > blockInds(j));
+                   tempTopInds = tempTopInds(1);
+                   
+                   freqsToRemove(1:round((freqLinesMeas(useInds(tempTopInds)) + freqLinesMeas(blockInds(j)))/2)) = 1;
+               elseif any(useInds < blockInds(j))
+                   tempBotInds = find(useInds < blockInds(j));
+                   tempBotInds = tempBotInds(end);
+                   
+                   freqsToRemove(round((freqLinesMeas(useInds(tempBotInds)) + freqLinesMeas(blockInds(j)))/2):end) = 1;
+               end
+            end
+        else
+           freqsToRemove = []; 
+        end
+        
+        % Get unique references to freqs
+        [~, tempI, tempBack] = unique([tempPredictionFreqs(freqLinesMeas(useLow))'  referenceLow(freqLinesMeas(useLow))], 'rows','stable');
+        useLow = useLow(tempI);
+                
+        % return different meas results that are on the same compressed line to original freq
+        tempPredictionFreqsLow = tempPredictionFreqs;
+        for j = 1:length(tempI)
+            % If single instance, use original freq
+            if sum(tempBack == tempBack(tempI(j))) == 1
+                tempPredictionFreqsLow(freqLinesMeas(useLow(j))) =  predictionFreqs(freqLinesMeas(useLow(j)));
+            end
+        end
+
+        [~, tempI, tempBack] = unique([tempPredictionFreqs(freqLinesMeas(useHigh))' referenceHigh(freqLinesMeas(useHigh))], 'rows','stable');
+        useHigh = useHigh(tempI);
+        
+        % return different meas results that are on the same compressed line to original freq
+        tempPredictionFreqsHigh = tempPredictionFreqs;
+        for j = 1:length(tempI)
+            % If single instance, use original freq
+            if sum(tempBack == tempBack(tempI(j))) == 1
+                tempPredictionFreqsHigh(freqLinesMeas(useHigh(j))) =  predictionFreqs(freqLinesMeas(useHigh(j)));
+            end
+        end
+        
+%         [tempPredictionFreqsLow' tempPredictionFreqs' tempPredictionFreqsHigh']
+        
         % interp internal with linear and extrap from border with nearest
-        referenceLow(freqLinesMeas(1):freqLinesMeas(end)) = round(interp1(freqLinesMeas, referenceLow(freqLinesMeas),...
-            freqLinesMeas(1):freqLinesMeas(end), 'linear'));
-        referenceLow(1:freqLinesMeas(1)) = referenceLow(freqLinesMeas(1));
-        referenceLow(freqLinesMeas(end):end) = referenceLow(freqLinesMeas(end));
+        if length(useLow) > 1
+            referenceLow(freqLinesMeas(useLow(1)):freqLinesMeas(useLow(end))) = round(interp1(tempPredictionFreqsLow(freqLinesMeas(useLow)), referenceLow(freqLinesMeas(useLow)),...
+                tempPredictionFreqsLow(freqLinesMeas(useLow(1)):freqLinesMeas(useLow(end))), distInterp));
+            referenceLow(1:freqLinesMeas(useLow(1))) = referenceLow(freqLinesMeas(useLow(1)));
+            referenceLow(freqLinesMeas(useLow(end)):end) = referenceLow(freqLinesMeas(useLow(end)));
+        else
+            referenceLow(:) = referenceLow(freqLinesMeas(useLow));
+        end
         
-        referenceHigh(freqLinesMeas(1):freqLinesMeas(end)) = ceil(interp1(freqLinesMeas, referenceHigh(freqLinesMeas),...
-            freqLinesMeas(1):freqLinesMeas(end), 'linear'));
-        referenceHigh(1:freqLinesMeas(1)) = referenceHigh(freqLinesMeas(1));
-        referenceHigh(freqLinesMeas(end):end) = referenceHigh(freqLinesMeas(end));
-        
-        % Linear interp and extrapolation seems similar...
-%         referenceLow = round(interp1(predictionFreqs(freqLinesMeas), referenceLow(freqLinesMeas),...
-%             predictionFreqs, 'linear', 'extrap'));
-%         
-%         referenceHigh = round(interp1(predictionFreqs(freqLinesMeas), referenceHigh(freqLinesMeas),...
-%             predictionFreqs, 'linear', 'extrap'));
+        if length(useHigh) > 1
+            referenceHigh(freqLinesMeas(useHigh(1)):freqLinesMeas(useHigh(end))) = round(interp1(tempPredictionFreqsHigh(freqLinesMeas(useHigh)), referenceHigh(freqLinesMeas(useHigh)),...
+                tempPredictionFreqsHigh(freqLinesMeas(useHigh(1)):freqLinesMeas(useHigh(end))), distInterp));
+            referenceHigh(1:freqLinesMeas(useHigh(1))) = referenceHigh(freqLinesMeas(useHigh(1)));
+            referenceHigh(freqLinesMeas(useHigh(end)):end) = referenceHigh(freqLinesMeas(useHigh(end)));
+        else
+            referenceHigh(:) = referenceHigh(freqLinesMeas(useHigh));
+        end
+
+        % Remove inds for missing lines
+        if ~isempty(freqsToRemove)
+            referenceLow(freqsToRemove) = 0;
+            referenceHigh(freqsToRemove) = 0;
+        end
         
         for j = 1:length(predictionFreqs)
-            if all(measVol(j,:,i) ~= -1)
+            if all(tempArrayFromLeft(j,:) == 0)
                 inds = find(baseX(missingLeft) == j & baseArrayFromLeft(baseInds(missingLeft)) >= referenceLow(j) & ...
                     baseArrayFromLeft(baseInds(missingLeft)) <= referenceHigh(j));
 
@@ -1601,16 +1687,22 @@ for i = fliplr(1:length(predictionPowers))
                     % Check line does not extend across whole map
                     if yVals(1) ~= 1 | yVals(end) ~= size(thresholdArray,2)
 
-                        % Check if first value is not on border
+                        % Check if first value is not on left border
                         if yVals(1) > 1
                             % just count up normally
                             tempArrayFromLeft(baseInds(missingLeft(inds))) = 1:length(inds);
+                            
+                            if maxOpenLeft < length(inds)
+                                maxOpenLeft = length(inds);
+                            end
                         else
                              % Step inds down from max
                              tempArrayFromLeft(baseInds(missingLeft(inds))) =  (maxOpenLeft-length(inds)+1):maxOpenLeft;
 
+                            % Removed as this seemed to skew the interp map left
                             % if border is low, step it up
-                            if tempArrayFromLeft(baseInds(missingLeft(inds(1)))) <= 0
+                            if tempArrayFromLeft(baseInds(missingLeft(inds(1)))) < 0
+                                warning('step up from neg used 2nd')
                                 tempArrayFromLeft(baseInds(missingLeft(inds))) = tempArrayFromLeft(baseInds(missingLeft(inds))) + 1 - tempArrayFromLeft(baseInds(missingLeft(inds(1))));
                             end
                         end
@@ -1620,6 +1712,8 @@ for i = fliplr(1:length(predictionPowers))
                 end
             end
         end
+    else
+       tempArrayFromLeft = flipLeftArray; 
     end
     
     distVol(:,:,i) = tempArrayFromLeft; %distanceArrayFromLeft;
@@ -1644,7 +1738,7 @@ interpVol = zeros(size(referenceVol));
 % Now do interp
 if length(simPowerTest_freqs) > 1
     % nearest best for both
-    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'linear', 'nearest');
+    distInterp = scatteredInterpolant(distVol(measInds), freqGrid(measInds), powerGrid(measInds), referenceVol(measInds), 'nearest', 'nearest');
 
     interpVol(allInds) = distInterp(distVol(allInds), freqGrid(allInds), powerGrid(allInds));
 else
