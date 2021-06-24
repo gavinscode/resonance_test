@@ -1,4 +1,4 @@
-clear; close all; clc
+% clear; close all; clc
 
 cd('/Users/gavintaylor/Documents/Matlab/Git_versioned_April_27/Resonance_test_git/Data')
 
