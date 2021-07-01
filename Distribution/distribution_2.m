@@ -12,8 +12,11 @@ clear; close all; clc;
     sizeStep = 2; % in nm
     sizeRange = [70 130];
 
-%     distPercent_thresh = 0.5; % bins with less than this percent removed from inital distribution
-    inactPercent_thresh = 2; % Note that nothing below this percent will get included in size maps
+
+    % lowering this reduces error on ref, but will give noise on real
+    sizePercent_thresh = 2; % Note that nothing below this percent will get included in size maps
+    
+    %%% In making final plots this thresh probal interacts with predict and inact thresholds
     
     %%% This should be determined by matching peak freq to size, change later
     influenzaVl = 1486; % Just matched in Saviot tool
@@ -75,7 +78,7 @@ clear; close all; clc;
 %     simPowerTest_freqs = 8.5;
         
     % all freqs
-    % simPowerTest_freqs = 1:0.5:15.5;
+%     simPowerTest_freqs = 1:0.5:15.5;
 
     % common progression to minimize error
   simPowerTest_freqs = [6.5 8.5 10.5];
@@ -83,8 +86,8 @@ clear; close all; clc;
     
     % problem combos
 %   simPowerTest_freqs = [4.5 8.5 12.5]; % wide
-%   simPowerTest_freqs = [5.5 8.5]; % [8.5 11.5]; %  pair
-%   simPowerTest_freqs = [4.5 8.5 11.5]; %[5.5 8.5 12.5]; %; % % assym
+%   simPowerTest_freqs =  [8.5 11.5]; % [5.5 8.5]; % pair
+%   simPowerTest_freqs = [5.5 8.5 12.5]; % [4.5 8.5 11.5]; % assym
 
     power_freqCols = winter(length(simPowerTest_freqs));
     power_powerCols = cool(length(simPowerTest_powers));
@@ -108,9 +111,10 @@ clear; close all; clc;
     predictInactThresh = 0.5; % ignore if total inact is under this percentage 
     
 % For interpolation    
+
     % How high can this be taken without changing results?
-        %%% 10 v 20 changes error when using all rows
-    
+        %%% 10 v 20 changes increases when using all rows
+    % 0 for ideal data, but will cause error if missing rows...
     interpInactThresh = 10; % don't include if indvidual size inact is under this percentage
     
     % distInterp = 'nearest'; % best if wide spacing...
@@ -155,8 +159,8 @@ end
 
 [~, maxSizeInd] = max(influenzaSize_dist);
 
-sizes2Use = find(influenzaSize_dist/initialCountNum*100 >= inactPercent_thresh);
-sizes2Remove = find(influenzaSize_dist/initialCountNum*100 < inactPercent_thresh);
+sizes2Use = find(influenzaSize_dist/initialCountNum*100 >= sizePercent_thresh);
+sizes2Remove = find(influenzaSize_dist/initialCountNum*100 < sizePercent_thresh);
 sizes2RemoveLow = sizes2Remove(sizes2Remove < sizes2Use(1));
 sizes2RemoveHigh = sizes2Remove(sizes2Remove > sizes2Use(end));
 %% get resonance to use for simulation - not known in experiment 
@@ -176,9 +180,9 @@ if length(powerThreshold) == 1
     powerThresholdInterp_ref = powerThreshold*ones(length(referenceFreqRange),1);
 else
     % Interp if more than one
-    powerThresholdInterp_ref = interp1(powerThresholdFreqs, powerThreshold, powerThresholdInterp_ref, 'linear',0);
+    powerThresholdInterp_ref = interp1(powerThresholdFreqs, powerThreshold, referenceFreqRange, 'linear',0);
     powerThresholdInterp_ref(powerThresholdInterp_ref == 0) = interp1(powerThresholdFreqs, powerThreshold, ...
-        powerThresholdInterp_ref(powerThresholdInterp_ref == 0), 'nearest','extrap');
+        referenceFreqRange(powerThresholdInterp_ref == 0), 'nearest','extrap');
 end
 
 [fullPowerRef, fullFreqRef] = meshgrid(referencePowerRange, referenceFreqRange);
@@ -668,6 +672,10 @@ if ~all(ismember(simPowerTest_freqs, predictionFreqs))
     error('Test power freqs missing from prediction calc')
 end
 
+if ~all(ismember(predictionFreqs, referenceFreqRange))
+    error('Test power freqs missing from prediction calc')
+end
+
 predictionPowers = simPowerTest_powers;
 
 % Take prediction values from previous
@@ -679,7 +687,7 @@ gaussSpreadToPred = curveSpread; freqCurve.c1;
 warning('Power fit not used in pred')
 
 %%% Can allow this to vary if observed does... 
-powerThresholdToPred = powerThreshold;
+powerThresholdToPred = powerThresholdInterp_ref(ismember(referenceFreqRange, predictionFreqs));
 
 predictedInactivation = zeros(length(predictionFreqs),length(predictionPowers));
 
@@ -688,7 +696,7 @@ for i = 1:length(predictionFreqs)
     curveVal = gaussMaxToPred*exp(-(predictionFreqs(i)-gaussCenterToPred).^2/(2*gaussSpreadToPred^2));
     
     for j = 1:length(predictionPowers)
-        if predictionPowers(j) > powerThresholdToPred
+        if predictionPowers(j) > powerThresholdToPred(i)
             if useWeibullPower
                 if log10(predictionPowers(j)) >= powerWeibullThreshold
                     powerVal = 1-exp(-powerWeibullAlpha * ...
@@ -942,7 +950,7 @@ for i = fliplr(1:length(predictionPowers))
     end
     
     % If not base, interpolate up as well
-    if length(predictionPowers) ~= i
+    if length(predictionPowers) ~= i & any(flipLeftArray(:) > 0) 
         baseInds = find(baseSeedArray == -1);
         [baseX, baseY] = ind2sub(size(referenceVol, [1 2]), baseInds);
         
@@ -993,21 +1001,25 @@ for i = fliplr(1:length(predictionPowers))
         % Identify if points on border can be used
         notBorderInds = find(referenceLow(freqLinesMeas) > 0 & borderLow(freqLinesMeas) == 0);
         borderInds = find(borderLow(freqLinesMeas));
-        for j = 1:length(borderInds)
-            % Using end from not border as left border at high freqs
-                % would be more robust is closest picked
-           if referenceLow(freqLinesMeas(borderInds(j))) > referenceLow(freqLinesMeas(notBorderInds(end)))
-               referenceLow(freqLinesMeas(borderInds(j))) = 0;
-           end
+        if ~isempty(borderInds) & ~isempty(notBorderInds)
+            for j = 1:length(borderInds)
+                % Using end from not border as left border at high freqs
+                    % would be more robust is closest picked
+               if referenceLow(freqLinesMeas(borderInds(j))) > referenceLow(freqLinesMeas(notBorderInds(end)))
+                   referenceLow(freqLinesMeas(borderInds(j))) = 0;
+               end
+            end
         end
         
         notBorderInds = find(referenceHigh(freqLinesMeas) > 0 & borderHigh(freqLinesMeas) == 0);
         borderInds = find(borderHigh(freqLinesMeas));
-        for j = 1:length(borderInds)
-            % Using 1 from not border as right border at low freqs
-           if referenceHigh(freqLinesMeas(borderInds(j))) < referenceHigh(freqLinesMeas(notBorderInds(1)))
-               referenceHigh(freqLinesMeas(borderInds(j))) = 0;
-           end
+        if ~isempty(borderInds) & ~isempty(notBorderInds)
+            for j = 1:length(borderInds)
+                % Using 1 from not border as right border at low freqs
+               if referenceHigh(freqLinesMeas(borderInds(j))) < referenceHigh(freqLinesMeas(notBorderInds(1)))
+                   referenceHigh(freqLinesMeas(borderInds(j))) = 0;
+               end
+            end
         end
         
         useLow = find(referenceLow(freqLinesMeas) > 0);
@@ -1164,17 +1176,17 @@ interpVol(interpVol < 0) = 0;
 interpVol(isnan(interpVol(:))) = 0;
 
 figure;
-for i = 1:5
-    subplot(5,4,i*4-3)
+for i = 1:length(predictionPowers)
+    subplot(length(predictionPowers),4,i*4-3)
     imshow(referenceVol(:,:,i)/100)
     
-    subplot(5,4,i*4-2)
+    subplot(length(predictionPowers),4,i*4-2)
     imshow(interpVol(:,:,i)/100)
     
-    subplot(5,4,i*4-1)
+    subplot(length(predictionPowers),4,i*4-1)
     imshow(distVol(:,:,i)/max(max(distVol(:,:,i))))
     
-    subplot(5,4,i*4)
+    subplot(length(predictionPowers),4,i*4)
     imshow(measVol(:,:,i)*-1)
 end
 
@@ -1212,9 +1224,19 @@ title('Dif kept to vol')
 
 subplot(4,4,8); hold on
 plot(predictionFreqs, sum(abs(predictedInactivation-interpInactArray),2),'g')
+title('error vs full across')
 
-subplot(4,4,16); hold on
+subplot(4,4,12); hold on
 plot(predictionFreqs, sum(abs(keptInact-interpInactArray),2),'g')
+title('error vs kept across')
+
+subplot(4,4,10); hold on
+plot(predictionPowers, sum(abs(predictedInactivation-interpInactArray),1),'g')
+title('error vs full down')
+
+subplot(4,4,11); hold on
+plot(predictionPowers, sum(abs(keptInact-interpInactArray),1),'g')
+title('error vs kept down')
 
 sseVol_full = sum((predictedInactivation(:)-interpInactArray(:)).^2);
 sseVol_thresh = sum((keptInact(:)-interpInactArray(:)).^2);
